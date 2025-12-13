@@ -396,6 +396,10 @@ class CardPopup(QtWidgets.QWidget):
                 self.anim_group = None
                 self.geo_anim = None
                 self.anim_type = None
+            
+            # 动画结束后启动检测定时器，实现"离开即收回"
+            if not self.monitor_timer.isActive():
+                self.monitor_timer.start()
         self.anim_group.finished.connect(on_finished)
         self.anim_group.start()
 
