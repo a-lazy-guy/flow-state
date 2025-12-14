@@ -111,7 +111,7 @@ def main():
     # 创建弹窗
     popup = CardPopup(card_path, ball_size=BALL_SIZE)
 
-    reminder_logic = EntertainmentReminder()
+    reminder_logic = EntertainmentReminder(threshold_duration=0.5)  # 30秒 = 0.5分钟（测试用）
 
     monitor_thread = MonitorThread()
     monitor_thread.status_updated.connect(reminder_logic.on_status_update)
