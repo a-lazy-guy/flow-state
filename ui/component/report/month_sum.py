@@ -528,10 +528,11 @@ class GrowthChart(QtWidgets.QWidget):
 
             for i, (xi, yi) in enumerate(zip(xs, ys)):
                 if i < len(self.cumulative):
+                    # 累计时长标签也使用金色
                     ax1.annotate(f'{int(self.cumulative[i])}h',
                                  (xi, yi), textcoords="offset points",
                                  xytext=(0, 10), ha='center',
-                                 color=color_text, fontsize=9, fontweight='bold')
+                                 color=color_gold, fontsize=10, fontweight='bold')
 
         ax1.set_ylim(0, 150)
         ax1.set_xticks(x)
