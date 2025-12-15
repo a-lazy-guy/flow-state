@@ -2,10 +2,22 @@ import time
 import threading
 import sys
 import os
+import ctypes
 from typing import Callable, Dict, Optional, Tuple
 
 print("[INIT] Starting imports...", file=sys.stderr)
 sys.stderr.flush()
+
+def get_active_window_title() -> str:
+    """获取当前活动窗口标题 (Windows)"""
+    try:
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        length = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+        buff = ctypes.create_unicode_buffer(length + 1)
+        ctypes.windll.user32.GetWindowTextW(hwnd, buff, length + 1)
+        return buff.value
+    except Exception:
+        return ""
 
 # Optional: cv2 (known to hang on some Windows 3.14 builds)
 CV2_AVAILABLE = False

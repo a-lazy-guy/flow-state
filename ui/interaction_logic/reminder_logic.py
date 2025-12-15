@@ -24,12 +24,15 @@ class EntertainmentReminder(QtCore.QObject):
     - 可选语音提醒
     """
     
-    def __init__(self, parent=None, threshold_duration=0.5):
+    def __init__(self, parent=None, threshold_duration=0.5, overlay=None):
         super().__init__(parent)
         self.threshold_duration = threshold_duration
         
         # UI组件
-        self.overlay = ReminderOverlay(parent)
+        if overlay:
+            self.overlay = overlay
+        else:
+            self.overlay = ReminderOverlay(parent)
         
         # 智能组件
         self.message_generator = SmartReminderGenerator()
@@ -173,7 +176,7 @@ class EntertainmentReminder(QtCore.QObject):
         
         Args:
             status: 当前状态
-            duration: 持续时间（分钟）
+            duration: 持续时间（秒）
             severity: 严重级别
         """
         # 准备UI数据
@@ -181,7 +184,7 @@ class EntertainmentReminder(QtCore.QObject):
             'message': '娱乐时间太长，该回去工作了！',
             'icon': '📚',
             'history': [],
-            'duration': int(duration * 60),
+            'duration': duration,
             'threshold': int(self.threshold_duration * 60),
             'encouragement': '坚持工作，你可以的！',
             'severity': severity

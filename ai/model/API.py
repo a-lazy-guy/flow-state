@@ -751,24 +751,65 @@ _runtime_state = {
 
 def _classify_status(monitor_data: Dict) -> str:
     change = float(monitor_data.get('screen_change_rate', 0.0) or 0.0)
-    is_complex = bool(monitor_data.get('is_complex_scene', False))
     key_presses = int(monitor_data.get('key_presses', 0) or 0)
     mouse_clicks = int(monitor_data.get('mouse_clicks', 0) or 0)
+    active_window = str(monitor_data.get('active_window', ''))
+    
+    total_input = key_presses + mouse_clicks
 
-    if change > 0.05 or is_complex:
+    # 0. 强制检查：必须是特定娱乐网站/应用
+    # 用户要求：必须是在浏览B站，抖音等网站的时候，才会检测我进入了娱乐状态
+    entertainment_keywords = [
+        "哔哩哔哩", "Bilibili", 
+        "抖音", "Douyin", 
+        "YouTube", 
+        "爱奇艺", "iQIYI",
+        "优酷", "Youku",
+        "腾讯视频", "Tencent Video",
+        "芒果TV",
+        "Netflix"
+    ]
+    
+    # 增加代码编辑器关键词，防止误判
+    coding_keywords = [
+        "Visual Studio Code", "VS Code",
+        "PyCharm", "IntelliJ", 
+        "Sublime Text", "Atom",
+        "Vim", "Emacs",
+        "Android Studio", "Xcode",
+        "Cursor"
+    ]
+
+    is_entertainment_window = any(kw.lower() in active_window.lower() for kw in entertainment_keywords)
+    is_coding_window = any(kw.lower() in active_window.lower() for kw in coding_keywords)
+
+    # 如果是代码编辑器，即使标题包含娱乐关键词（如文件名包含bilibili），也不认为是娱乐
+    if is_entertainment_window and not is_coding_window:
         return 'entertainment'
-    if key_presses + mouse_clicks >= 10:
+
+    # 如果是代码编辑器，直接判定为工作状态
+    if is_coding_window:
         return 'work'
-    if key_presses + mouse_clicks >= 3:
+
+    # 1. 优先判断输入行为
+    if total_input >= 5:
+        return 'work'
+    if total_input >= 2:
         return 'focus'
+
+    # 2. 移除基于屏幕变化的通用娱乐判定，避免误判 VS Code 等
+    # if change > 0.08:
+    #    return 'entertainment'
+        
+    # 3. 其他情况归为阅读/思考
     return 'reading'
 
 def _status_message(status: str) -> str:
     return {
-        'entertainment': '检测到高动态画面，可能在娱乐/视频。',
+        'entertainment': '检测到您正在浏览娱乐网站。',
         'work': '检测到较多输入操作，可能在工作。',
-        'focus': '轻度输入且低动态，专注状态良好。',
-        'reading': '静止画面为主，推测在阅读/思考。'
+        'focus': '有少量输入操作，专注状态良好。',
+        'reading': '画面相对静止，推测在阅读/思考。'
     }.get(status, '状态未知。')
 
 def get_analysis(monitor_data: Dict) -> Dict:

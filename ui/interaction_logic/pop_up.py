@@ -233,14 +233,14 @@ class CardPopup(QtWidgets.QWidget):
         
         # 确保宽度足以容纳历史组件 (sizeHint=230)
         # 最小宽度 = 历史组件宽(230) + 间距 + 球体宽
-        history_min_w = 230
+        history_min_w = 240
         min_w = history_min_w + mx + self.ball_size
         
         total_w = max(w, min_w)
         
         # 总尺寸：专注卡片高度 + 间距 + 球体高度 (历史组件占据球体高度的左侧)
-        # 确保底部高度足以容纳历史组件 (sizeHint=64)
-        history_h = 64
+        # 确保底部高度足以容纳历史组件 (sizeHint=70)
+        history_h = 70
         bottom_h = max(self.ball_size, history_h)
         total_h = h + my + bottom_h
         
@@ -261,8 +261,8 @@ class CardPopup(QtWidgets.QWidget):
         mx, my = self.target_margin
         
         # 底部区域高度 = 球体大小 (或历史组件高度)
-        # 确保底部高度足以容纳历史组件 (sizeHint=64)
-        history_h = 64
+        # 确保底部高度足以容纳历史组件 (sizeHint=70)
+        history_h = 70
         bottom_h = max(self.ball_size, history_h)
         
         # 卡片高度 = 总高度 - 间距 - 底部高度
@@ -292,7 +292,7 @@ class CardPopup(QtWidgets.QWidget):
              w_card = hint.width()
              h_card = hint.height()
              
-             history_min_w = 230
+             history_min_w = 240
              mx, my = self.target_margin
              min_w = history_min_w + mx + self.ball_size
              w = max(w_card, min_w)
@@ -302,8 +302,8 @@ class CardPopup(QtWidgets.QWidget):
 
         mx, my = self.target_margin
         
-        # 确保底部高度足以容纳历史组件 (sizeHint=64)
-        history_h = 64
+        # 确保底部高度足以容纳历史组件 (sizeHint=70)
+        history_h = 70
         bottom_h = max(self.ball_size, history_h)
         total_h = h_card + my + bottom_h
         
@@ -431,15 +431,16 @@ class CardPopup(QtWidgets.QWidget):
 
     def hideToBall(self, ball_widget):
         """
-        请求隐藏：启动位置检测定时器。
+        请求隐藏：立即收回到小球位置（点击关闭应当立刻生效）。
         """
         if not self.isVisible():
             return
+        # 停止基于鼠标位置的自动隐藏检测，避免与点击关闭冲突
+        if self.monitor_timer.isActive():
+            self.monitor_timer.stop()
         self.ball_ref = ball_widget
-        # 立即进行一次检查，如果不在范围内则开始计时或直接隐藏
-        # 但为了平滑体验，直接启动定时器即可
-        if not self.monitor_timer.isActive():
-            self.monitor_timer.start()
+        # 点击关闭应该立即执行隐藏动画，而不是等待鼠标移出安全区域
+        self._performHide(ball_widget)
 
     def _performHide(self, ball_widget):
         """

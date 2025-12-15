@@ -95,22 +95,22 @@ class FocusStatusCard(QtWidgets.QWidget):
 
     def sizeHint(self):
         # 根据当前层级返回建议大小
-        # 第1层（紧凑）：约 150px
-        # 第2层（展开高级控制）：约 220px
+        # 第1层（紧凑）：约 200px
+        # 第2层（展开高级控制）：约 290px
 
-        base_h = 150  # 第1层基础高度 (标题30 + 进度6 + 状态30 + 摘要30 + 间距 + 边距)
+        base_h = 200  # 第1层基础高度 (标题36 + 进度8 + 状态36 + 摘要36 + 间距 + 边距)
 
         if self.hover_level == 1:
             h = base_h
         else:  # self.hover_level == 2
-            h = base_h + 70  # 高级操作高度 (标题 + 按钮24 + 间距)
+            h = base_h + 90  # 高级操作高度 (标题 + 按钮32 + 间距)
 
-        return QtCore.QSize(250, h)
+        return QtCore.QSize(280, h)
 
     def _build_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)  # 减小边距
-        layout.setSpacing(6)  # 减小间距
+        layout.setContentsMargins(12, 12, 12, 12)  # 增加边距
+        layout.setSpacing(8)  # 增加间距
 
         # 通用内部条目样式 (简洁无边框)
         self.item_style = """
@@ -118,49 +118,49 @@ class FocusStatusCard(QtWidgets.QWidget):
                 background-color: rgba(255, 255, 255, 10);
                 border: none;
                 border-radius: 12px;
-                padding: 4px 12px;
+                padding: 6px 12px;
                 color: #e0f0f8;
             }
         """
 
         # 第1层：核心状态
         self.title_label = QtWidgets.QLabel("🎯 今日专注  0.0h / 8h")
-        title_font = QtGui.QFont("Microsoft YaHei", 10, QtGui.QFont.DemiBold)
+        title_font = QtGui.QFont("Microsoft YaHei", 11, QtGui.QFont.DemiBold)
         self.title_label.setFont(title_font)
         self.title_label.setStyleSheet(self.item_style)
-        self.title_label.setFixedHeight(30)  # 减小高度
+        self.title_label.setFixedHeight(36)  # 增加高度
 
         # 进度条：今日专注完成度
         self.progress = QtWidgets.QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
-        self.progress.setFixedHeight(6)  # 减小高度
+        self.progress.setFixedHeight(8)  # 增加高度
         self.progress.setStyleSheet("""
             QProgressBar {
                 border: 0px;
                 background-color: rgba(255, 255, 255, 25);
-                border-radius: 3px;
+                border-radius: 4px;
             }
             QProgressBar::chunk {
                 background-color: #64b5f6; /* 更亮的蓝色 */
-                border-radius: 3px;
+                border-radius: 4px;
             }
         """)
 
         self.status_label = QtWidgets.QLabel("⚡ 专注中  已连续0分钟")
-        self.status_label.setFont(QtGui.QFont("Microsoft YaHei", 9))
+        self.status_label.setFont(QtGui.QFont("Microsoft YaHei", 10))
         self.status_label.setStyleSheet(self.item_style)
-        self.status_label.setFixedHeight(30)  # 减小高度
+        self.status_label.setFixedHeight(36)  # 增加高度
 
         self.summary_label = QtWidgets.QLabel("💪 拉回注意力 0次  ↑效率+0%")
-        self.summary_label.setFont(QtGui.QFont("Microsoft YaHei", 9))
+        self.summary_label.setFont(QtGui.QFont("Microsoft YaHei", 10))
         self.summary_label.setStyleSheet(self.item_style)
-        self.summary_label.setFixedHeight(30)  # 减小高度
+        self.summary_label.setFixedHeight(36)  # 增加高度
 
         layout.addWidget(self.title_label)
         layout.addWidget(self.progress)
-        layout.addSpacing(2)
+        layout.addSpacing(4)
         layout.addWidget(self.status_label)
         layout.addWidget(self.summary_label)
 
@@ -182,14 +182,14 @@ class FocusStatusCard(QtWidgets.QWidget):
         self.advanced_container = QtWidgets.QWidget(self)
         self.advanced_container.setStyleSheet(container_style)
         adv_layout = QtWidgets.QVBoxLayout(self.advanced_container)
-        adv_layout.setContentsMargins(10, 8, 10, 8)
-        adv_layout.setSpacing(6)
+        adv_layout.setContentsMargins(12, 10, 12, 10)
+        adv_layout.setSpacing(10)
 
         adv_title = QtWidgets.QLabel("⚙️ 高级")
-        adv_title.setFont(QtGui.QFont("Microsoft YaHei", 9))
+        adv_title.setFont(QtGui.QFont("Microsoft YaHei", 10))
 
         adv_btn_row = QtWidgets.QHBoxLayout()
-        adv_btn_row.setSpacing(8)
+        adv_btn_row.setSpacing(10)
 
         btn_style = """
             QPushButton {
@@ -198,7 +198,8 @@ class FocusStatusCard(QtWidgets.QWidget):
                 border: 0px;
                 color: #a8d8ea;
                 padding: 0 10px;
-                height: 24px;
+                height: 32px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 40);
@@ -209,8 +210,9 @@ class FocusStatusCard(QtWidgets.QWidget):
         self.btn_goal = QtWidgets.QPushButton("结束目标")
         for btn in (self.btn_deep, self.btn_goal):
             btn.setCursor(QtCore.Qt.PointingHandCursor)
-            btn.setFixedHeight(24)
+            btn.setFixedHeight(32)
             btn.setStyleSheet(btn_style)
+            btn.setFont(QtGui.QFont("Microsoft YaHei", 9, QtGui.QFont.Bold))
 
         adv_btn_row.addWidget(self.btn_deep)
         adv_btn_row.addWidget(self.btn_goal)
@@ -538,7 +540,7 @@ class GoalSettingDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("设置专注目标")
         self.setModal(True)
-        self.setFixedSize(360, 350)  # 增加宽度和高度以避免文本覆盖
+        self.setFixedSize(400, 420)  # 增加宽度和高度以避免文本覆盖
 
         # 呼吸动画
         self.breath_value = 0.0
@@ -641,14 +643,15 @@ class GoalSettingDialog(QtWidgets.QDialog):
         goal_container = QtWidgets.QWidget()
         goal_layout = QtWidgets.QVBoxLayout(goal_container)
         goal_layout.setContentsMargins(0, 0, 0, 0)
-        goal_layout.setSpacing(6)
+        goal_layout.setSpacing(8)
 
         goal_label = QtWidgets.QLabel("目标内容:")
-        goal_label.setFont(QtGui.QFont("Microsoft YaHei", 9))
+        goal_label.setFont(QtGui.QFont("Microsoft YaHei", 10))
 
         self.goal_input = QtWidgets.QLineEdit()
         self.goal_input.setPlaceholderText("请输入你的专注目标...")
-        self.goal_input.setFont(QtGui.QFont("Microsoft YaHei", 9))
+        self.goal_input.setFont(QtGui.QFont("Microsoft YaHei", 10))
+        self.goal_input.setFixedHeight(36)
         self.goal_input.textChanged.connect(self._validate_input)
 
         goal_layout.addWidget(goal_label)
@@ -659,21 +662,21 @@ class GoalSettingDialog(QtWidgets.QDialog):
         time_container = QtWidgets.QWidget()
         time_layout = QtWidgets.QVBoxLayout(time_container)
         time_layout.setContentsMargins(0, 0, 0, 0)
-        time_layout.setSpacing(8)
+        time_layout.setSpacing(10)
 
         time_label = QtWidgets.QLabel("专注时长:")
-        time_label.setFont(QtGui.QFont("Microsoft YaHei", 9))
+        time_label.setFont(QtGui.QFont("Microsoft YaHei", 10))
         time_layout.addWidget(time_label)
 
         # 预设时间按钮
         preset_layout = QtWidgets.QGridLayout()
-        preset_layout.setSpacing(12)  # 增加按钮间距
+        preset_layout.setSpacing(14)  # 增加按钮间距
 
         self.preset_buttons = []
         for i, (minutes, text) in enumerate(PRESET_TIMES):
             btn = QtWidgets.QPushButton(text)
-            btn.setFont(QtGui.QFont("Microsoft YaHei", 8))
-            btn.setFixedHeight(38)  # 增加按钮高度
+            btn.setFont(QtGui.QFont("Microsoft YaHei", 9, QtGui.QFont.DemiBold))
+            btn.setFixedHeight(42)  # 增加按钮高度
             btn.setCursor(QtCore.Qt.PointingHandCursor)
             btn.clicked.connect(
                 lambda checked, m=minutes, b=btn: self._on_preset_button_clicked(b, m))
@@ -687,16 +690,17 @@ class GoalSettingDialog(QtWidgets.QDialog):
 
         # 自定义时间输入
         custom_layout = QtWidgets.QHBoxLayout()
-        custom_layout.setSpacing(8)
+        custom_layout.setSpacing(10)
 
         custom_label = QtWidgets.QLabel("自定义:")
-        custom_label.setFont(QtGui.QFont("Microsoft YaHei", 8))
+        custom_label.setFont(QtGui.QFont("Microsoft YaHei", 10))
 
         self.custom_time_input = QtWidgets.QSpinBox()
         self.custom_time_input.setRange(1, 180)
         self.custom_time_input.setValue(25)
         self.custom_time_input.setSuffix(" 分钟")
-        self.custom_time_input.setFont(QtGui.QFont("Microsoft YaHei", 8))
+        self.custom_time_input.setFont(QtGui.QFont("Microsoft YaHei", 10))
+        self.custom_time_input.setFixedHeight(36)
         self.custom_time_input.valueChanged.connect(
             self._on_custom_time_changed)
 
@@ -709,17 +713,17 @@ class GoalSettingDialog(QtWidgets.QDialog):
 
         # 按钮区域
         button_layout = QtWidgets.QHBoxLayout()
-        button_layout.setSpacing(10)
+        button_layout.setSpacing(12)
 
         self.cancel_button = QtWidgets.QPushButton("取消")
-        self.cancel_button.setFont(QtGui.QFont("Microsoft YaHei", 9))
-        self.cancel_button.setFixedHeight(36)
+        self.cancel_button.setFont(QtGui.QFont("Microsoft YaHei", 10, QtGui.QFont.Bold))
+        self.cancel_button.setFixedHeight(40)
         self.cancel_button.setCursor(QtCore.Qt.PointingHandCursor)
         self.cancel_button.clicked.connect(self.reject)
 
         self.confirm_button = QtWidgets.QPushButton("开始专注 (25分钟)")
-        self.confirm_button.setFont(QtGui.QFont("Microsoft YaHei", 9))
-        self.confirm_button.setFixedHeight(36)
+        self.confirm_button.setFont(QtGui.QFont("Microsoft YaHei", 10, QtGui.QFont.Bold))
+        self.confirm_button.setFixedHeight(40)
         self.confirm_button.setCursor(QtCore.Qt.PointingHandCursor)
         self.confirm_button.clicked.connect(self._on_confirm_button_clicked)
         self.confirm_button.setEnabled(False)  # 初始禁用

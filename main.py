@@ -2,26 +2,29 @@ import sys
 import os
 import time
 
-try:
-    from PySide6 import QtCore, QtGui, QtWidgets
-    Signal = QtCore.Signal
-except ImportError:
-    from PyQt5 import QtCore, QtGui, QtWidgets
-    Signal = QtCore.pyqtSignal
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QImage, QPainter, QColor, QFont
 
 # 导入自定义组件
 from ui.component.float_ball import SuspensionBall
 from ui.interaction_logic.pop_up import CardPopup
 from ui.component.reminder_simple import ReminderOverlay
 from ui.component.reminder_simple import ReminderOverlay as SimpleReminderOverlay
-from ui.component.fatigue_rest_reminder import FatigueRestReminder
 import ui.component.focus_card as cardgen
 
 # 导入 AI 模块
-from ai.tool.tool import InputMonitor, ScreenAnalyzer
+from ai.tool.tool import InputMonitor, ScreenAnalyzer, get_active_window_title
 from ai.model import API
+# from ui.component.html_reminder_window import ReminderOverlayWebBased
+from ui.component.fatigue_reminder_qt import FatigueReminderWindow
+from fatigue_reminder_simple import FatigueReminderDialog
 
-class MonitorThread(QtCore.QThread):
+
+class MonitorThread(QThread):
+    """
+    后台监控线程：采集输入与屏幕数据，调用 API，并通过信号向主线程发送状态结果。
+    """
     status_updated = Signal(dict)
 
     def __init__(self, parent=None):
@@ -34,31 +37,41 @@ class MonitorThread(QtCore.QThread):
     def run(self):
         self.monitor.start()
         while self.running:
-            # 1. Capture Data
-            frame = self.analyzer.capture_screen()
-            analysis_stats = self.analyzer.analyze_frame(frame)
-            content_type, change_val = self.analyzer.detect_content_type(frame, self.last_frame)
-            self.last_frame = frame
-            
-            input_stats = self.monitor.get_and_reset_stats()
+            try:
+                # 1. 采集数据
+                frame = self.analyzer.capture_screen()
+                analysis_stats = self.analyzer.analyze_frame(frame)
+                content_type, change_val = self.analyzer.detect_content_type(frame, self.last_frame)
+                self.last_frame = frame
 
-            # 2. Prepare Data for API
-            monitor_data = {
-                'key_presses': input_stats['key_presses'],
-                'mouse_clicks': input_stats['mouse_clicks'],
-                'screen_change_rate': change_val,
-                'is_complex_scene': analysis_stats.get('is_complex_scene', False) if analysis_stats else False
-            }
+                input_stats = self.monitor.get_and_reset_stats()
+                active_window = get_active_window_title()
 
-            # 3. Call API
-            if API:
-                try:
-                    result = API.get_analysis(monitor_data)
-                    self.status_updated.emit(result)
-                except Exception as e:
-                    print(f"API Error: {e}")
-            
-            time.sleep(1) # Check every second
+                # 2. 组装数据
+                monitor_data = {
+                    'key_presses': input_stats.get('key_presses', 0),
+                    'mouse_clicks': input_stats.get('mouse_clicks', 0),
+                    'screen_change_rate': change_val,
+                    'is_complex_scene': analysis_stats.get('is_complex_scene', False) if analysis_stats else False,
+                    'content_type': content_type,
+                    'active_window': active_window
+                }
+
+                # 3. 调用 API
+                if API:
+                    try:
+                        result = API.get_analysis(monitor_data)
+                        if isinstance(result, dict):
+                            self.status_updated.emit(result)
+                    except Exception as e:
+                        print(f"[MonitorThread] API Error: {e}")
+
+                time.sleep(1)  # 每秒检查一次
+            except Exception as e:
+                print(f"[MonitorThread] Error in run loop: {e}")
+                import traceback
+                traceback.print_exc()
+                time.sleep(1)
 
     def stop(self):
         self.running = False
@@ -68,59 +81,100 @@ class MonitorThread(QtCore.QThread):
 def ensure_card_png(path):
     """
     确保 focus_card.png 存在，如果不存在则生成。
-    注意：由于旧的生成代码已被移除，这里不再生成静态图片。
-    如果需要显示卡片，应该直接使用 FocusStatusCard 组件。
-    为了兼容性，我们可以创建一个空白或默认的图片，或者修改调用逻辑。
     """
     if not os.path.exists(path):
-        # 创建一个简单的空白/占位图片，防止报错
-        img = QtGui.QImage(300, 400, QtGui.QImage.Format_ARGB32)
-        img.fill(QtCore.Qt.transparent)
-        painter = QtGui.QPainter(img)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        
-        # 绘制简单的圆角矩形背景
-        painter.setBrush(QtGui.QColor(40, 40, 40, 200))
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRoundedRect(0, 0, 300, 400, 20, 20)
-        
-        # 绘制文字
-        painter.setPen(QtGui.QColor(255, 255, 255))
-        font = QtGui.QFont("Microsoft YaHei", 12)
-        painter.setFont(font)
-        painter.drawText(img.rect(), QtCore.Qt.AlignCenter, "Focus Card")
-        
-        painter.end()
-        img.save(path)
+        try:
+            # 创建一个简单的空白/占位图片，防止报错
+            img = QImage(300, 400, QImage.Format.Format_ARGB32)
+            img.fill(QColor(0, 0, 0, 0))
+            painter = QPainter(img)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            
+            # 绘制简单的圆角矩形背景
+            painter.setBrush(QColor(40, 40, 40, 200))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(0, 0, 300, 400, 20, 20)
+            
+            # 绘制文字
+            painter.setPen(QColor(255, 255, 255))
+            font = QFont("Microsoft YaHei", 12)
+            painter.setFont(font)
+            painter.drawText(img.rect(), Qt.AlignmentFlag.AlignCenter, "Focus Card")
+            
+            painter.end()
+            img.save(path)
+            print(f"[ensure_card_png] PNG created at {path}")
+        except Exception as e:
+            print(f"[ensure_card_png] Error: {e}")
+
 
 def main():
     """
     主程序入口。
     """
-    app = QtWidgets.QApplication(sys.argv)
+    print("[MAIN] ====== 程序启动 ======", flush=True)
+    
+    try:
+        app = QtWidgets.QApplication(sys.argv)
+        print("[MAIN] QApplication 创建完成", flush=True)
+    except Exception as e:
+        print(f"[MAIN] ERROR 创建 QApplication 失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
     
     # 确保资源目录存在
     assets_dir = os.path.join(os.getcwd(), "assets")
     os.makedirs(assets_dir, exist_ok=True)
     card_path = os.path.join(assets_dir, "focus_card.png")
     ensure_card_png(card_path)
+    print("[MAIN] 资源目录和 PNG 初始化完成", flush=True)
     
     # 1. 创建并显示悬浮球
-    ball = SuspensionBall()
-    ball.show()
+    ball = None
+    try:
+        print("[MAIN] 创建 SuspensionBall...", flush=True)
+        ball = SuspensionBall()
+        print(f"[MAIN] SuspensionBall 创建完成，大小: {ball.size()}", flush=True)
+        ball.show()
+        print(f"[MAIN] SuspensionBall 已显示，位置: {ball.pos()}", flush=True)
+    except Exception as e:
+        print(f"[MAIN] ERROR 创建悬浮球失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
     
-    # 2. 创建弹窗 (CardPopup 需要 ball_size 来计算布局，SuspensionBall 尺寸为 43+margin*2，但实际球体是 43)
-    # pop_up.py 默认 ball_size=64，我们传入实际球体大小或 widget 大小？
-    # pop_up.py 逻辑: bottom_h = max(ball_size, 64)
-    # 传入 widget 的高度更合适，确保对齐
-    popup = CardPopup(card_path, ball_size=ball.height())
+    # 2. 创建弹窗
+    popup = None
+    try:
+        print("[MAIN] 创建 CardPopup...", flush=True)
+        popup = CardPopup(card_path, ball_size=ball.height())
+        # 确保弹窗有合理的最小尺寸，防止白屏
+        popup.setMinimumSize(280, 200)
+        print("[MAIN] CardPopup 创建完成", flush=True)
+    except Exception as e:
+        print(f"[MAIN] ERROR 创建 CardPopup 失败: {e}")
+        import traceback
+        traceback.print_exc()
+        popup = None
 
     # 3. 创建提醒遮罩
-    reminder = ReminderOverlay()
-    simple_reminder = SimpleReminderOverlay()
-    
-    # 创建疲劳休息提醒
-    fatigue_reminder = FatigueRestReminder()
+    reminder = None
+    fatigue_window = None
+    try:
+        print("[MAIN] 创建提醒遮罩...", flush=True)
+        reminder = ReminderOverlay()
+        simple_reminder = SimpleReminderOverlay()
+        fatigue_window = FatigueReminderWindow()
+        print("[MAIN] 提醒遮罩创建完成", flush=True)
+    except Exception as e:
+        print(f"[MAIN] ERROR 创建提醒遮罩失败: {e}")
+        import traceback
+        traceback.print_exc()
+        reminder = None
+        simple_reminder = None
+        fatigueer = None
+        html_reminder_window = None
     
     # 追踪娱乐状态的开始时间
     entertainment_start_time = None
@@ -130,125 +184,151 @@ def main():
     
     # 鼠标悬停悬浮球：自动显示弹窗
     def on_ball_hover():
-        if not popup.isVisible():
-            popup.showFromBall(ball)
+        if popup and not popup.isVisible():
+            try:
+                popup.showFromBall(ball)
+            except Exception as e:
+                print(f"[on_ball_hover] Error: {e}")
             
-    # 连接 entered 信号 (悬浮球类中已定义)
+    # 连接 entered 信号
     ball.entered.connect(on_ball_hover)
     
-    # 点击悬浮球：切换弹窗显示 (保留作为辅助)
+    # 点击悬浮球：切换弹窗显示
     def on_ball_clicked():
-        if popup.isVisible():
-            popup.hideToBall(ball)
-        else:
-            popup.showFromBall(ball)
+        if popup:
+            try:
+                if popup.isVisible():
+                    popup.hideToBall(ball)
+                else:
+                    popup.showFromBall(ball)
+            except Exception as e:
+                print(f"[on_ball_clicked] Error: {e}")
     ball.clicked.connect(on_ball_clicked)
     
     # 悬浮球移动：弹窗跟随
-    ball.positionChanged.connect(lambda pos: popup.followBall(ball))
+    if popup:
+        ball.positionChanged.connect(lambda pos: popup.followBall(ball))
     
     # 5. 启动 AI 监控线程
-    monitor_thread = MonitorThread()
+    monitor_thread = None
+    try:
+        print("[MAIN] 创建 MonitorThread...", flush=True)
+        monitor_thread = MonitorThread()
+        print("[MAIN] MonitorThread 创建完成", flush=True)
+    except Exception as e:
+        print(f"[MAIN] ERROR 创建 MonitorThread 失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
     
+    # 定义状态更新回调
     def on_status_update(result):
-        # 结果格式: {'status': 'working', 'duration': 120, 'message': '...'}
         nonlocal entertainment_start_time, entertainment_reminder_shown
         
-        status = result.get('status', 'idle')
-        duration = result.get('duration', 0)
-        
-        # ========== 疲劳休息提醒逻辑 ==========
-        # 初始化：程序启动时设置开始时间
-        if not hasattr(on_status_update, 'app_start_time'):
-            on_status_update.app_start_time = time.time()
-        
-        # 程序运行 15 秒后弹出疲劳提醒（仅显示一次）
-        if not hasattr(on_status_update, 'fatigue_reminder_shown'):
-            on_status_update.fatigue_reminder_shown = False
-        
-        if not on_status_update.fatigue_reminder_shown:
-            elapsed_time = time.time() - on_status_update.app_start_time
-            if elapsed_time >= 15:  # 15 秒后
-                on_status_update.fatigue_reminder_shown = True
-                print("[MAIN] 程序运行 15 秒，弹出疲劳休息提醒")
-                fatigue_reminder.show_reminder(duration=int(elapsed_time))
-        
-        # ========== 娱乐时间过长提醒逻辑 ==========
-        # 检测娱乐状态的开始和结束
-        if status in ["entertainment", "reading"]:
-            # 进入娱乐状态
-            if entertainment_start_time is None:
-                entertainment_start_time = time.time()
-                entertainment_reminder_shown = False
-                print("[MAIN] 检测到娱乐状态开始")
+        try:
+            status = result.get('status', 'idle')
+            duration = result.get('duration', 0)
             
-            # 娱乐状态持续 15 秒后弹出提醒
-            entertainment_duration = time.time() - entertainment_start_time
-            if not entertainment_reminder_shown and entertainment_duration >= 15:
-                entertainment_reminder_shown = True
-                print("[MAIN] 娱乐状态持续 15 秒，弹出娱乐时间过长提醒")
+            # ========== 疲劳休息提醒逻辑 ==========
+            # (已移除旧的错误实现，改用 main 函数中的 QTimer)
+            
+            # ========== 娱乐时间过长提醒逻辑 ==========
+            if status in ["entertainment", "reading"]:
+                if entertainment_start_time is None:
+                    entertainment_start_time = time.time()
+                    entertainment_reminder_shown = False
+                    print("[MAIN] 检测到娱乐状态开始")
                 
-                # 创建娱乐提醒数据
-                test_data = {
-                    'message': '检测到您正在看视频',
-                    'duration': int(entertainment_duration),
-                    'severity': 'medium',
-                    'encouragement': '时间飞快～该休息一下了！'
-                }
-                simple_reminder.show_reminder(test_data)
-        else:
-            # 离开娱乐状态，重置
-            if entertainment_start_time is not None:
-                print("[MAIN] 离开娱乐状态")
-                entertainment_start_time = None
-                entertainment_reminder_shown = False
-        
-        # ========== 原有逻辑 ==========
-        # 5.1 检查提醒 (娱乐状态持续20秒以上)
-        if status == 'entertainment' and duration > 20:
-            pass  # 原逻辑可在这里保留
+                entertainment_duration = time.time() - entertainment_start_time
+                if not entertainment_reminder_shown and entertainment_duration >= 15:
+                    entertainment_reminder_shown = True
+                    print("[MAIN] 娱乐状态持续 15 秒，弹出娱乐时间过长提醒")
+                    
+                    test_data = {
+                        'message': '检测到您正在看视频',
+                        'duration': int(entertainment_duration),
+                        'severity': 'medium',
+                        'encouragement': '时间飞快～该休息一下了！'
+                    }
+                    if simple_reminder:
+                        try:
+                            simple_reminder.show_reminder(test_data)
+                        except Exception as e:
+                            print(f"[on_status_update] Error showing simple reminder: {e}")
+            else:
+                if entertainment_start_time is not None:
+                    print("[MAIN] 离开娱乐状态")
+                    entertainment_start_time = None
+                    entertainment_reminder_shown = False
             
-        # 5.2 更新悬浮球状态
-        status_map = {
-            'working': 'focus',
-            'entertainment': 'distract_lite', # 默认轻度分心
-            'idle': 'rest'
-        }
-        
-        # 根据时长升级分心状态
-        ball_state = status_map.get(status, 'focus')
-        if status == 'entertainment' and duration > 60:
-            ball_state = 'distract_heavy'
+            # ========== 更新悬浮球状态 ==========
+            status_map = {
+                'working': 'focus',
+                'entertainment': 'distract_lite',
+                'idle': 'rest'
+            }
             
-        ball.update_state(ball_state)
-        
-        # 5.3 更新悬浮球微信息 (显示时长)
-        mins = int(duration / 60) # 分钟
-        if mins > 0:
-            ball.update_data(text=f"{mins}m")
-        else:
-            ball.update_data(text="")
+            ball_state = status_map.get(status, 'focus')
+            if status == 'entertainment' and duration > 60:
+                ball_state = 'distract_heavy'
             
+            try:
+                ball.update_state(ball_state)
+            except Exception as e:
+                print(f"[on_status_update] Error updating ball state: {e}")
+            
+            # 更新悬浮球微信息 (显示时长)
+            mins = int(duration / 60)
+            try:
+                if mins > 0:
+                    ball.update_data(text=f"{mins}m")
+                else:
+                    ball.update_data(text="")
+            except Exception as e:
+                print(f"[on_status_update] Error updating ball data: {e}")
+                
+        except Exception as e:
+            print(f"[MAIN] ERROR in on_status_update: {e}")
+            import traceback
+            traceback.print_exc()
+    
     monitor_thread.status_updated.connect(on_status_update)
+    print("[MAIN] 启动 MonitorThread...", flush=True)
     monitor_thread.start()
+    print("[MAIN] MonitorThread 已启动", flush=True)
     
     # 6. 生成日报 (可选，启动时检查)
     report_path = os.path.join(assets_dir, "daily_summary_report.png")
     if not os.path.exists(report_path):
         try:
             from ui.component.report import daily_sum
-            # 这里假设有一个生成函数，如果没有，则跳过
-            pass 
         except Exception:
             pass
 
+    # 30秒后显示疲劳提醒 (Added per user request)
+    def show_fatigue_reminder_test():
+        print("[MAIN] 30秒已到，显示疲劳提醒测试")
+        # 随机选择严重程度
+        import random
+        severity = random.choice(['low', 'medium', 'high'])
+        durations = {'low': 30, 'medium': 120, 'high': 240}
+        
+        dialog = FatigueReminderDialog(severity=severity, duration=durations[severity])
+        dialog.exec()
+
+    QtCore.QTimer.singleShot(30000, show_fatigue_reminder_test)
+
     # 运行主循环
-    # 设置 quitOnLastWindowClosed 为 False，确保日报关闭时主程序（悬浮球）不退出
+    print("[MAIN] 设置应用属性...", flush=True)
     app.setQuitOnLastWindowClosed(False)
+    print("[MAIN] 进入事件循环...", flush=True)
     exit_code = app.exec()
     
     # 退出清理
-    monitor_thread.stop()
+    print("[MAIN] 清理资源...", flush=True)
+    if monitor_thread:
+        monitor_thread.stop()
+    print("[MAIN] 程序退出", flush=True)
     sys.exit(exit_code)
 
 if __name__ == "__main__":

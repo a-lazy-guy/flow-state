@@ -16,19 +16,20 @@ class ActivityHistoryManager:
         current_time = time.time()
         
         # 如果状态改变，保存前一个状态的历史
-        if status != self.current_status and self.current_status is not None:
-            duration = int((current_time - self.status_start_time) / 60)
-            self.history.append({
-                'status': self.current_status,
-                'duration': duration,
-                'timestamp': self.status_start_time
-            })
-            # 保持最近10条记录
-            if len(self.history) > 10:
-                self.history = self.history[-10:]
-        
-        self.current_status = status
-        self.status_start_time = current_time
+        if status != self.current_status:
+            if self.current_status is not None:
+                duration = int((current_time - self.status_start_time) / 60)
+                self.history.append({
+                    'status': self.current_status,
+                    'duration': duration,
+                    'timestamp': self.status_start_time
+                })
+                # 保持最近10条记录
+                if len(self.history) > 10:
+                    self.history = self.history[-10:]
+            
+            self.current_status = status
+            self.status_start_time = current_time
     
     def get_current_duration(self) -> int:
         """获取当前状态持续时间（分钟）"""

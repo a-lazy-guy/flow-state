@@ -1,4 +1,5 @@
 PySide6
+PySide6-QtWebEngine
 opencv-python
 numpy>=2.3
 Pillow
