@@ -1275,8 +1275,17 @@ class TimelineView(QtWidgets.QWidget):
         bg_gradient = QtGui.QRadialGradient(rect.center(), max(rect.width(), rect.height()) / 1.2)
         
         # 使用 MorandiTheme 定义的颜色
-        bg_gradient.setColorAt(0, MorandiTheme.COLOR_BG_CENTER)
-        bg_gradient.setColorAt(1, MorandiTheme.COLOR_BG_EDGE)
+        # bg_gradient.setColorAt(0, MorandiTheme.COLOR_BG_CENTER)
+        # bg_gradient.setColorAt(1, MorandiTheme.COLOR_BG_EDGE)
+        
+        # 自定义深色背景板，增强对比度 (在这里修改背景颜色和透明度)
+        # 中心：深蓝灰色，透明度 230 (约90%)
+        c_center = QtGui.QColor(25, 35, 45, 230)
+        # 边缘：接近黑色，透明度 245 (约96%)
+        c_edge = QtGui.QColor(10, 15, 20, 245)
+        
+        bg_gradient.setColorAt(0, c_center)
+        bg_gradient.setColorAt(1, c_edge)
         
         painter.setBrush(bg_gradient)
         painter.setPen(QtCore.Qt.NoPen)
@@ -2580,7 +2589,7 @@ class Card3_Flow(QtWidgets.QWidget):
         p.drawText(20, 25, "⚡ 最长心流时段")
 
         # 内容 - 暗色主题
-        p.setPen(QtGui.QColor(DesignTokens.COLORS['text_primary']))
+        p.setPen(QtGui.QColor("#ffd700"))
         p.setFont(QtGui.QFont("Noto Sans SC", 12, QtGui.QFont.Bold))
         p.drawText(20, 50, "92分钟")
         p.setPen(QtGui.QColor(DesignTokens.COLORS['text_muted']))
@@ -2633,7 +2642,7 @@ class Card4_Rest(QtWidgets.QWidget):
         p.drawText(20, 25, "🛋️ 休息达标率")
 
         # 内容 - 暗色主题
-        p.setPen(QtGui.QColor(DesignTokens.COLORS['text_primary']))
+        p.setPen(QtGui.QColor("#2ecc71"))
         p.setFont(QtGui.QFont("Noto Sans SC", 16, QtGui.QFont.Bold))
         p.drawText(120, 25, "85%")
 
@@ -2952,7 +2961,7 @@ class SimpleDailyReport(QtWidgets.QWidget):
         add_line()
 
         # 文案框1
-        self.msg1 = self.create_msg_box("比昨天多出30分钟！进步看得见！", "#3498db")
+        self.msg1 = self.create_msg_box("比昨天多出<span style='color: #2ecc71;'>30分钟</span>！进步看得见！", "#3498db")
         cc_layout.addWidget(self.msg1)
         add_line()
 

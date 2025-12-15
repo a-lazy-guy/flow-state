@@ -31,9 +31,19 @@ class FatigueReminderDialog(QDialog):
         self.setWindowTitle("工作疲劳提醒")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFixedSize(500, 600)
+        self.setFixedSize(500, 720)
         
         self.setup_ui()
+        self._center_window()
+        
+    def _center_window(self):
+        """将窗口居中显示"""
+        screen = QApplication.primaryScreen()
+        if screen:
+            geometry = screen.availableGeometry()
+            x = geometry.x() + (geometry.width() - self.width()) // 2
+            y = geometry.y() + (geometry.height() - self.height()) // 2
+            self.move(x, y)
         
     def setup_ui(self):
         """构建UI"""
@@ -46,13 +56,13 @@ class FatigueReminderDialog(QDialog):
             QFrame {
                 background-color: white;
                 border-radius: 20px;
-                border: 1px solid #e0e0e0;
+                border: none;
             }
         """)
         
         bg_layout = QVBoxLayout()
-        bg_layout.setContentsMargins(40, 40, 40, 40)
-        bg_layout.setSpacing(25)
+        bg_layout.setContentsMargins(40, 20, 40, 40)  # 减少顶部边距 (40 -> 20)
+        bg_layout.setSpacing(15)  # 减少整体控件间距 (25 -> 15)
         
         # 关闭按钮
         close_btn = QPushButton("✕")
@@ -71,42 +81,59 @@ class FatigueReminderDialog(QDialog):
         """)
         close_btn.clicked.connect(self.accept)
         
-        # 标题区域
-        header_layout = QHBoxLayout()
+        # 顶部区域 (关闭按钮)
+        top_layout = QHBoxLayout()
+        top_layout.addStretch()
+        top_layout.addWidget(close_btn)
         
-        # 图标
+        # 将顶部布局插入到主背景布局的最开始，并且不添加额外的间距
+        bg_layout.addLayout(top_layout)
+        
+        # 头部整体区域（图标+标题）
+        header_frame = QFrame()
+        header_frame.setObjectName("headerFrame")
+        header_frame.setStyleSheet("""
+            QFrame#headerFrame {
+                background-color: rgba(248, 249, 250, 200);
+                border-radius: 20px;
+                border: 1px solid rgba(0, 0, 0, 0.03);
+            }
+            QFrame#headerFrame:hover {
+                background-color: rgba(240, 242, 245, 220);
+                border: 1px solid rgba(0, 0, 0, 0.08);
+            }
+        """)
+        
+        header_layout = QVBoxLayout(header_frame)
+        header_layout.setContentsMargins(20, 20, 20, 20)
+        header_layout.setSpacing(10)
+        
+        # 图标 (居中)
         icon_label = QLabel("⚠️")
         icon_label.setFont(QFont("Arial", 48))
-        icon_label.setFixedSize(80, 80)
+        icon_label.setFixedSize(100, 100)
+        icon_label.setAlignment(Qt.AlignCenter)
+        icon_label.setStyleSheet("background: transparent; border: none;")
+        header_layout.addWidget(icon_label, alignment=Qt.AlignCenter)
         
-        # 标题和描述
-        title_layout = QVBoxLayout()
-        title_layout.setSpacing(8)
-        
+        # 标题 (居中)
         title = QLabel("你需要休息一下了")
         title.setFont(QFont("Microsoft YaHei", 22, QFont.Bold))
-        title.setStyleSheet("color: #2c3e50;")
+        title.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        title.setAlignment(Qt.AlignCenter)
+        header_layout.addWidget(title)
         
+        # 描述文本 (在方框外)
         severity_text = self._get_severity_text()
         severity_label = QLabel(severity_text)
         severity_label.setFont(QFont("Microsoft YaHei", 13))
-        severity_label.setStyleSheet("color: #7f8c8d;")
+        severity_label.setStyleSheet("color: #7f8c8d; background: transparent; border: none;")
+        severity_label.setAlignment(Qt.AlignCenter)
         
-        title_layout.addWidget(title)
-        title_layout.addWidget(severity_label)
-        
-        header_layout.addWidget(icon_label)
-        header_layout.addLayout(title_layout)
-        header_layout.addStretch()
-        header_layout.addWidget(close_btn, alignment=Qt.AlignTop)
-        
-        bg_layout.addLayout(header_layout)
-        
-        # 分割线
-        divider = QFrame()
-        divider.setFrameShape(QFrame.HLine)
-        divider.setStyleSheet("border: 1px solid #ecf0f1;")
-        bg_layout.addWidget(divider)
+        # 使用负边距将整体向上拉
+        bg_layout.addSpacing(-20)
+        bg_layout.addWidget(header_frame)
+        bg_layout.addWidget(severity_label)
         
         # 统计信息区域
         stats_layout = QHBoxLayout()
@@ -133,14 +160,29 @@ class FatigueReminderDialog(QDialog):
         bg_layout.addLayout(stats_layout)
         
         # 进度条
+        score_layout = QHBoxLayout()
+        score_layout.setSpacing(10)
+        
         progress_label = QLabel("疲劳指数")
         progress_label.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
         progress_label.setStyleSheet("color: #2c3e50;")
         
+        score_val = self._calculate_fatigue_score()
+        score_label = QLabel(f"{score_val}%")
+        score_label.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        score_label.setStyleSheet(f"color: {self._get_severity_color()};")
+        
+        score_layout.addWidget(progress_label)
+        score_layout.addWidget(score_label)
+        score_layout.addStretch()
+        
+        bg_layout.addLayout(score_layout)
+        
         self.progress = QProgressBar()
         self.progress.setMaximum(100)
-        self.progress.setValue(self._calculate_fatigue_score())
+        self.progress.setValue(score_val)
         self.progress.setFixedHeight(8)
+        self.progress.setTextVisible(False)  # 隐藏进度条上的文字
         self.progress.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
@@ -153,17 +195,34 @@ class FatigueReminderDialog(QDialog):
             }}
         """)
         
-        bg_layout.addWidget(progress_label)
         bg_layout.addWidget(self.progress)
         
-        # 建议文本
+        # 建议文本区域
+        suggestion_frame = QFrame()
+        suggestion_frame.setObjectName("suggestionFrame")
+        suggestion_frame.setStyleSheet("""
+            QFrame#suggestionFrame {
+                background-color: rgba(248, 249, 250, 200);
+                border-radius: 16px;
+                border: 1px solid rgba(0, 0, 0, 0.03);
+            }
+            QFrame#suggestionFrame:hover {
+                background-color: rgba(240, 242, 245, 220);
+                border: 1px solid rgba(0, 0, 0, 0.08);
+            }
+        """)
+        
+        sugg_layout = QVBoxLayout(suggestion_frame)
+        sugg_layout.setContentsMargins(20, 15, 20, 15)
+        
         suggestion = QLabel(self._get_suggestion())
         suggestion.setFont(QFont("Microsoft YaHei", 12))
-        suggestion.setStyleSheet("color: #34495e; line-height: 1.6;")
+        suggestion.setStyleSheet("color: #34495e; line-height: 1.6; background: transparent; border: none;")
         suggestion.setWordWrap(True)
-        suggestion.setFixedHeight(60)
+        suggestion.setAlignment(Qt.AlignCenter)
         
-        bg_layout.addWidget(suggestion)
+        sugg_layout.addWidget(suggestion)
+        bg_layout.addWidget(suggestion_frame)
         
         # 按钮区域
         btn_layout = QHBoxLayout()
@@ -221,22 +280,37 @@ class FatigueReminderDialog(QDialog):
     def _create_stat_widget(self, icon: str, label: str, value: str, color: str):
         """创建统计小部件"""
         widget = QtWidgets.QWidget()
+        widget.setObjectName("statWidget")
+        widget.setStyleSheet("""
+            QWidget#statWidget {
+                background-color: rgba(248, 249, 250, 200);
+                border-radius: 16px;
+                border: 1px solid rgba(0, 0, 0, 0.03);
+            }
+            QWidget#statWidget:hover {
+                background-color: rgba(240, 242, 245, 220);
+                border: 1px solid rgba(0, 0, 0, 0.08);
+            }
+        """)
+        
         layout = QVBoxLayout()
         layout.setSpacing(8)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(10, 15, 10, 15)
         
         icon_label = QLabel(icon)
         icon_label.setFont(QFont("Arial", 28))
         icon_label.setAlignment(Qt.AlignCenter)
+        icon_label.setMinimumHeight(50)
+        icon_label.setStyleSheet("background: transparent; border: none;")
         
         label_widget = QLabel(label)
         label_widget.setFont(QFont("Microsoft YaHei", 10))
-        label_widget.setStyleSheet("color: #7f8c8d;")
+        label_widget.setStyleSheet("color: #7f8c8d; background: transparent; border: none;")
         label_widget.setAlignment(Qt.AlignCenter)
         
         value_widget = QLabel(value)
         value_widget.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
-        value_widget.setStyleSheet(f"color: {color};")
+        value_widget.setStyleSheet(f"color: {color}; background: transparent; border: none;")
         value_widget.setAlignment(Qt.AlignCenter)
         
         layout.addWidget(icon_label)
@@ -305,7 +379,7 @@ def show_reminder_after_30s():
     timer = QTimer()
     timer.timeout.connect(trigger_reminder)
     timer.setSingleShot(True)
-    timer.start(30000)  # 30秒
+    timer.start(3000)  # 30秒
     
     sys.exit(app.exec())
 

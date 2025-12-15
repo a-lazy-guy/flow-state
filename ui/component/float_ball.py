@@ -219,12 +219,23 @@ class SuspensionBall(QtWidgets.QWidget):
         # 莫兰迪蓝基色: rgba(168, 216, 234) -> #a8d8ea
         
         gradient = QtGui.QRadialGradient(0, 0, radius, -radius * 0.3, -radius * 0.3)
-        # stop:0 rgba(168, 216, 234, 0.9)
-        c1 = QtGui.QColor(168, 216, 234)
+        
+        # 根据状态设置颜色
+        if self._state == 'distract_heavy':
+            # 黄色警告色: #F1C40F
+            base_color = QtGui.QColor(241, 196, 15)
+            edge_color = QtGui.QColor(243, 156, 18)
+        else:
+            # 默认莫兰迪蓝: #a8d8ea
+            base_color = QtGui.QColor(168, 216, 234)
+            edge_color = QtGui.QColor(127, 179, 232)
+            
+        # stop:0
+        c1 = base_color
         c1.setAlphaF(current_alpha * 0.95) # 稍微调整系数
         
-        # stop:1 rgba(127, 179, 232, 0.6)
-        c2 = QtGui.QColor(127, 179, 232)
+        # stop:1
+        c2 = edge_color
         c2.setAlphaF(current_alpha * 0.7)
         
         gradient.setColorAt(0.0, c1)
@@ -232,8 +243,10 @@ class SuspensionBall(QtWidgets.QWidget):
         
         painter.setBrush(gradient)
         
-        # 边框: 2px solid rgba(168, 216, 234, 0.9)
-        border_pen = QtGui.QPen(QtGui.QColor(168, 216, 234, int(255 * 0.9)), 2)
+        # 边框
+        border_color = base_color
+        border_color.setAlpha(int(255 * 0.9))
+        border_pen = QtGui.QPen(border_color, 2)
         painter.setPen(border_pen)
         
         painter.drawEllipse(QtCore.QPointF(0, 0), radius, radius)

@@ -31,9 +31,14 @@ def qt_const(name: str) -> Any:
 class ReminderOverlay(QtWidgets.QDialog):
     """简单娱乐提醒界面 - 仅显示消息和三个操作按钮"""
     
-    work_clicked = QtCore.Signal()
-    snooze_clicked = QtCore.Signal()
-    disable_clicked = QtCore.Signal()
+    if hasattr(QtCore, 'Signal'):
+        Signal = QtCore.Signal
+    else:
+        Signal = QtCore.pyqtSignal
+        
+    work_clicked = Signal()
+    snooze_clicked = Signal()
+    disable_clicked = Signal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -78,14 +83,13 @@ class ReminderOverlay(QtWidgets.QDialog):
         center_y = geometry.top() + (geometry.height() - window_height) // 2
         self.setGeometry(center_x, center_y, window_width, window_height)
         
-        # 主容器 - 淡蓝色渐变背景，高透明度
+        # 主容器 - 使用疲劳提醒的白色主题
         self.container = QtWidgets.QWidget(self)
         self.container.setStyleSheet("""
             QWidget {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(200, 230, 255, 200), stop:1 rgba(150, 200, 255, 200));
+                background-color: white;
+                border-radius: 20px;
                 border: none;
-                border-radius: 16px;
             }
         """)
         
@@ -97,54 +101,68 @@ class ReminderOverlay(QtWidgets.QDialog):
         # 容器内布局 - 增加内边距和间距
         layout = QtWidgets.QVBoxLayout(self.container)
         layout.setContentsMargins(80, 60, 80, 60)
-        layout.setSpacing(40)
+        layout.setSpacing(20)
         
-        # 主消息 - 更温和的语气
+        # 消息区域包装 - 仿照疲劳提醒的头部样式
+        msg_frame = QtWidgets.QFrame()
+        msg_frame.setStyleSheet("""
+            QFrame {
+                background-color: rgba(248, 249, 250, 200);
+                border-radius: 20px;
+                border: 1px solid rgba(0, 0, 0, 0.03);
+            }
+            QFrame:hover {
+                background-color: rgba(240, 242, 245, 220);
+                border: 1px solid rgba(0, 0, 0, 0.08);
+            }
+        """)
+        msg_layout = QtWidgets.QVBoxLayout(msg_frame)
+        msg_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # 主消息 - 深色文字
         self.main_message = QtWidgets.QLabel("该休息一下了")
         self.main_message.setStyleSheet("""
             QLabel {
-                color: #5a67d8;
+                color: #2c3e50;
                 font-size: 48px;
                 font-weight: bold;
                 letter-spacing: 2px;
+                background: transparent;
+                border: none;
             }
         """)
         self.main_message.setAlignment(qt_const("AlignCenter"))
         self.main_message.setWordWrap(True)
         self.main_message.setMinimumHeight(80)
-        layout.addWidget(self.main_message)
+        msg_layout.addWidget(self.main_message)
+        layout.addWidget(msg_frame)
         
-        # 分割线
-        separator = QtWidgets.QFrame()
-        hline = getattr(QtWidgets.QFrame, "HLine", None)
-        if hline is not None:
-            separator.setFrameShape(hline)
-        else:
-            try:
-                separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
-            except Exception:
-                separator.setFrameShape(4)
-        separator.setStyleSheet("background-color: rgba(200, 210, 240, 0.4);")
-        separator.setFixedHeight(1)
-        layout.addWidget(separator)
-        
-        # 鼓励语句 - 更积极的心理暗示
+        # 鼓励语句 - 单独的浅灰色方框
+        enc_frame = QtWidgets.QFrame()
+        enc_frame.setStyleSheet("""
+            QFrame {
+                background-color: rgba(248, 249, 250, 200);
+                border-radius: 12px;
+                border: 1px solid rgba(0, 0, 0, 0.03);
+            }
+        """)
+        enc_layout = QtWidgets.QVBoxLayout(enc_frame)
+        enc_layout.setContentsMargins(20, 15, 20, 15)
+
         self.encouragement = QtWidgets.QLabel("💪 坚持就是胜利，休息是为了走得更远")
         self.encouragement.setStyleSheet("""
             QLabel {
-                color: #48bb78;
+                color: #7f8c8d;
                 font-size: 18px;
                 font-weight: bold;
-                padding: 20px;
-                background-color: rgba(72, 187, 120, 0.08);
-                border-radius: 12px;
-                border-left: 5px solid #48bb78;
+                background: transparent;
+                border: none;
             }
         """)
         self.encouragement.setAlignment(qt_const("AlignCenter"))
         self.encouragement.setWordWrap(True)
-        self.encouragement.setMinimumHeight(100)
-        layout.addWidget(self.encouragement)
+        enc_layout.addWidget(self.encouragement)
+        layout.addWidget(enc_frame)
         
         # 添加伸缩空间
         layout.addStretch()
@@ -313,7 +331,8 @@ class ReminderOverlay(QtWidgets.QDialog):
         # 根据严重级别自定义消息
         severity = data.get('severity', 'low')
         duration = data.get('duration', 0)  # 持续时间（秒），需要转换为分钟
-        minutes = int(duration / 60) if duration else 22
+        # 确保至少显示 1 分钟，避免出现 "0 分钟"
+        minutes = max(1, int(duration / 60)) if duration else 22
         
         # 温暖友好的提醒消息
         if severity == 'low':

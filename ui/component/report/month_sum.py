@@ -478,8 +478,9 @@ class GrowthChart(QtWidgets.QWidget):
 
         ax2.spines['top'].set_visible(False)
         ax2.spines['left'].set_visible(False)
-        ax2.spines['right'].set_visible(False)  # 隐藏右侧轴线
-        ax2.set_yticks([])  # 隐藏右侧刻度和标签
+        ax2.spines['right'].set_visible(True)
+        ax2.spines['right'].set_color(color_text)
+        ax2.tick_params(axis='y', colors=color_gold, labelsize=10)
 
         x = np.arange(len(self.weeks))
 
