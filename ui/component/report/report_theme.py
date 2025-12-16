@@ -16,6 +16,7 @@ class ReportTheme:
     _C_GOLD               = "#FFD700"  # 255, 215, 0
     _C_GOLD_LIGHT         = "#FFE033"
     _C_GOLD_DARK          = "#CCAC00"
+    c = "#FAD209"
     _C_ACCENT_LIGHT       = "#BFE6F2"
     _C_RED                = "#FF6B6B"
     _C_RED_DARK           = "#FF4444"
