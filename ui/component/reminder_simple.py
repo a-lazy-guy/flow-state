@@ -1,3 +1,9 @@
+"""
+[正在使用]
+用于显示"娱乐时间过长"的简单提醒弹窗。
+被 ui.interaction_logic.reminder_logic.EntertainmentReminder 调用。
+包含 ReminderOverlay 类。
+"""
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -77,8 +83,8 @@ class ReminderOverlay(QtWidgets.QDialog):
             geometry = QtCore.QRect(0, 0, 800, 600)
         
         # 设置窗口尺寸（更大、更舒适的提醒窗口）
-        window_width = 800
-        window_height = 600
+        window_width = 700
+        window_height = 500
         center_x = geometry.left() + (geometry.width() - window_width) // 2
         center_y = geometry.top() + (geometry.height() - window_height) // 2
         self.setGeometry(center_x, center_y, window_width, window_height)
@@ -124,9 +130,9 @@ class ReminderOverlay(QtWidgets.QDialog):
         self.main_message.setStyleSheet("""
             QLabel {
                 color: #2c3e50;
-                font-size: 48px;
+                font-size: 32px;
                 font-weight: bold;
-                letter-spacing: 2px;
+                letter-spacing: 1px;
                 background: transparent;
                 border: none;
             }
@@ -169,22 +175,22 @@ class ReminderOverlay(QtWidgets.QDialog):
         
         # 操作按钮栏 - 更柔和的按钮样式
         button_layout = QtWidgets.QHBoxLayout()
-        button_layout.setSpacing(20)
+        button_layout.setSpacing(16)
         button_layout.setAlignment(qt_const("AlignCenter"))
         
         # 按钮1：继续工作 - 温暖的黄色
         work_button = QtWidgets.QPushButton("继续工作 💪")
-        work_button.setMinimumHeight(60)
-        work_button.setMinimumWidth(180)
+        work_button.setMinimumHeight(52)
+        work_button.setMinimumWidth(150)
         work_button.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #fbbf24, stop:1 #f59e0b);
                 color: white;
                 border: none;
-                border-radius: 12px;
-                padding: 14px 28px;
-                font-size: 16px;
+                border-radius: 10px;
+                padding: 12px 24px;
+                font-size: 14px;
                 font-weight: bold;
                 letter-spacing: 0.5px;
             }
@@ -202,17 +208,17 @@ class ReminderOverlay(QtWidgets.QDialog):
         
         # 按钮2：再休息5分钟 - 柔和的蓝色
         snooze_button = QtWidgets.QPushButton("再休息5分钟 ☕")
-        snooze_button.setMinimumHeight(60)
-        snooze_button.setMinimumWidth(180)
+        snooze_button.setMinimumHeight(52)
+        snooze_button.setMinimumWidth(150)
         snooze_button.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #60a5fa, stop:1 #3b82f6);
                 color: white;
                 border: none;
-                border-radius: 12px;
-                padding: 14px 28px;
-                font-size: 16px;
+                border-radius: 10px;
+                padding: 12px 24px;
+                font-size: 14px;
                 font-weight: bold;
                 letter-spacing: 0.5px;
             }
@@ -230,17 +236,17 @@ class ReminderOverlay(QtWidgets.QDialog):
         
         # 按钮3：禁用提醒 - 柔和的灰色
         disable_button = QtWidgets.QPushButton("暂时禁用 ✕")
-        disable_button.setMinimumHeight(60)
-        disable_button.setMinimumWidth(180)
+        disable_button.setMinimumHeight(52)
+        disable_button.setMinimumWidth(150)
         disable_button.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #d1d5db, stop:1 #9ca3af);
                 color: #374151;
                 border: none;
-                border-radius: 12px;
-                padding: 14px 28px;
-                font-size: 16px;
+                border-radius: 10px;
+                padding: 12px 24px;
+                font-size: 13px;
                 font-weight: bold;
                 letter-spacing: 0.5px;
             }
@@ -265,10 +271,6 @@ class ReminderOverlay(QtWidgets.QDialog):
         self.fade_animation = QtCore.QPropertyAnimation(self, b"windowOpacity")
         self.fade_animation.setDuration(400)
 
-    def mousePressEvent(self, event):
-        """点击关闭"""
-        self.close_reminder()
-    
     def keyPressEvent(self, event):
         """Esc 键关闭"""
         if event.key() == QtCore.Qt.Key_Escape:
@@ -278,8 +280,10 @@ class ReminderOverlay(QtWidgets.QDialog):
     
     def hideEvent(self, event):
         """隐藏事件处理"""
-        # 允许窗口正常隐藏，无需额外处理
-        super().hideEvent(event)
+        if not self._is_closing:
+            event.ignore()  # 保留窗口，但不强制显示
+        else:
+            super().hideEvent(event)
     
     def on_work_button(self):
         """用户点击'回去工作'按钮"""
@@ -317,13 +321,7 @@ class ReminderOverlay(QtWidgets.QDialog):
         """淡出动画"""
         self.fade_animation.setStartValue(1.0)
         self.fade_animation.setEndValue(0.0)
-        # 断开所有之前的连接，避免重复触发
-        try:
-            self.fade_animation.finished.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-        # 淡出完后关闭窗口
-        self.fade_animation.finished.connect(lambda: self.close())
+        self.fade_animation.finished.connect(lambda: self.hide())
         self.fade_animation.start()
     
     def show_reminder(self, data: dict):
@@ -334,16 +332,30 @@ class ReminderOverlay(QtWidgets.QDialog):
         # 确保至少显示 1 分钟，避免出现 "0 分钟"
         minutes = max(1, int(duration / 60)) if duration else 22
         
-        # 温暖友好的提醒消息
-        if severity == 'low':
-            message = f"你已经看了 {minutes} 分钟视频啦～\n是不是被剧情吸引住了？没关系，\n要不要试试换件事做？✨"
-            encouragement = "💪 休息一下，然后继续加油！"
-        elif severity == 'medium':
-            message = f"你已经娱乐 {minutes} 分钟了呢～\n时间过得可真快！\n不过是时候回到工作上了吧？😊"
-            encouragement = "🎯 坚持一下，好事儿在后头！"
-        else:  # high
-            message = f"哇，{minutes} 分钟了！\n你真的很投入呢～\n但现在真的该认真工作了哦！"
-            encouragement = "✨ 冲冲冲，你可以的！"
+        # 优先使用传入的消息
+        custom_message = data.get('message')
+        custom_encouragement = data.get('encouragement')
+        
+        if custom_message:
+            message = custom_message
+        else:
+            # 温暖友好的提醒消息
+            if severity == 'low':
+                message = f"你已经看了 {minutes} 分钟视频啦～\n是不是被剧情吸引住了？没关系，\n要不要试试换件事做？✨"
+            elif severity == 'medium':
+                message = f"你已经追剧 {minutes} 分钟了呢～\n时间过得可真快！\n不过是时候回到工作上了吧？😊"
+            else:  # high
+                message = f"哇，{minutes} 分钟了！\n你真的很投入呢～\n但现在真的该认真工作了哦！"
+        
+        if custom_encouragement:
+            encouragement = custom_encouragement
+        else:
+            if severity == 'low':
+                encouragement = "💪 休息一下，然后继续加油！"
+            elif severity == 'medium':
+                encouragement = "🎯 坚持一下，好事儿在后头！"
+            else:
+                encouragement = "✨ 冲冲冲，你可以的！"
         
         self.main_message.setText(message)
         self.encouragement.setText(encouragement)

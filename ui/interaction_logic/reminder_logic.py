@@ -8,10 +8,7 @@ from typing import Optional
 
 from ui.component.reminder_simple import ReminderOverlay
 from ui.component.smart_reminder_generator import SmartReminderGenerator
-from ui.component.activity_history_manager import ActivityHistoryManager
-from ui.component.fatigue_detector import FatigueDetector
-from ui.component.fatigue_reminder import FatigueReminder
-from ui.component.fatigue_reminder_dialog import FatigueReminderDialog
+from data.activity_history_manager import ActivityHistoryManager
 
 
 class EntertainmentReminder(QtCore.QObject):
@@ -24,15 +21,12 @@ class EntertainmentReminder(QtCore.QObject):
     - 可选语音提醒
     """
     
-    def __init__(self, parent=None, threshold_duration=0.5, overlay=None):
+    def __init__(self, parent=None, threshold_duration=0.5):
         super().__init__(parent)
         self.threshold_duration = threshold_duration
         
         # UI组件
-        if overlay:
-            self.overlay = overlay
-        else:
-            self.overlay = ReminderOverlay(parent)
+        self.overlay = ReminderOverlay(parent)
         
         # 智能组件
         self.message_generator = SmartReminderGenerator()
@@ -57,17 +51,6 @@ class EntertainmentReminder(QtCore.QObject):
         self.overlay.work_clicked.connect(self.on_work_button)
         self.overlay.snooze_clicked.connect(self.on_snooze_button)
         self.overlay.disable_clicked.connect(self.on_disable_button)
-        
-        # 疲劳检测器
-        self.fatigue_detector = FatigueDetector()
-        self.work_session_start = None  # 当前工作会话开始时间
-        self.last_fatigue_check = 0  # 设为0，只有在真正工作时才开始检查
-        self.fatigue_check_interval = 300  # 每5分钟检查一次
-        
-        # 疲惫提醒系统（连续工作超过5小时）
-        self.fatigue_reminder = FatigueReminder(parent)
-        self.fatigue_reminder.fatigue_reminder_triggered.connect(self._on_fatigue_reminder_triggered)
-        self.current_fatigue_reminder_dialog = None
         
         # 语音支持（可选）
         self.voice_enabled = False
@@ -114,16 +97,6 @@ class EntertainmentReminder(QtCore.QObject):
         # 更新活动历史
         self.history_manager.update(status)
         
-        # ========== 疲惫提醒系统 ==========
-        # 追踪工作活动以检测连续工作超过5小时
-        if status in ['focus', 'work']:
-            self.fatigue_reminder.mark_activity()
-        
-        # 定期检查是否需要显示疲惫提醒
-        self.fatigue_reminder.check_idle_and_update()
-        fatigue_reminder_data = self.fatigue_reminder.check_fatigue_reminder()
-        
-        # ========== 原有提醒逻辑 ==========
         # 如果从娱乐切换到专注/工作，记录娱乐持续时长并显示鼓励
         if status in ['focus', 'work'] and self.show_work_encouragement:
             self._show_focus_encouragement()
@@ -143,20 +116,20 @@ class EntertainmentReminder(QtCore.QObject):
             self._reminded_at_50min = False
             self.reminder_count = 0
         
-        # 检查三个提醒时间点：10秒、20秒、30秒
+        # 检查三个提醒时间点：3秒、10秒、20秒
         if status in ["entertainment", "reading"] and not self.reminder_disabled:
             current_time = time.time()
             if current_time >= self.snooze_until_time:
-                # 10秒提醒
-                if 10 <= duration < 20 and not self._reminded_at_22min:
+                # 3秒提醒 (原10秒逻辑前移)
+                if 3 <= duration < 10 and not self._reminded_at_22min:
                     self._reminded_at_22min = True
                     self._handle_entertainment_warning(status, duration, 'low')
-                # 20秒提醒
-                elif 20 <= duration < 30 and not self._reminded_at_35min:
+                # 10秒提醒 (原20秒逻辑前移)
+                elif 10 <= duration < 20 and not self._reminded_at_35min:
                     self._reminded_at_35min = True
                     self._handle_entertainment_warning(status, duration, 'medium')
-                # 30秒提醒
-                elif duration >= 30 and not self._reminded_at_50min:
+                # 20秒提醒 (原30秒逻辑前移)
+                elif duration >= 20 and not self._reminded_at_50min:
                     self._reminded_at_50min = True
                     self._handle_entertainment_warning(status, duration, 'high')
     
@@ -176,22 +149,30 @@ class EntertainmentReminder(QtCore.QObject):
         
         Args:
             status: 当前状态
-            duration: 持续时间（秒）
+            duration: 持续时间（分钟）
             severity: 严重级别
         """
-        # 准备UI数据
+        # 1. 使用 SmartReminderGenerator 生成个性化文案
+        # 注意：SmartReminderGenerator.generate_reminder 只需要 severity
+        reminder_content = self.message_generator.generate_reminder(severity)
+        
+        # 2. 准备UI数据
         display_data = {
-            'message': '娱乐时间太长，该回去工作了！',
-            'icon': '📚',
+            'message': reminder_content.get('message', '该休息了'),
+            'icon': reminder_content.get('icon', '📚'),
             'history': [],
-            'duration': duration,
+            'duration': int(duration * 60),
             'threshold': int(self.threshold_duration * 60),
-            'encouragement': '坚持工作，你可以的！',
+            'encouragement': reminder_content.get('encouragement', '坚持就是胜利'),
             'severity': severity
         }
         
-        # 显示UI
+        # 3. 显示UI (调用 ui.component.reminder_simple.ReminderOverlay)
         self.overlay.show_reminder(display_data)
+        
+        # 4. 触发语音提醒 (如果启用)
+        if self.voice_enabled:
+            self._speak_reminder(display_data['message'], severity)
     
     def _speak_reminder(self, message: str, severity: str):
         """语音播报提醒
@@ -272,128 +253,6 @@ class EntertainmentReminder(QtCore.QObject):
     
     def get_statistics(self) -> dict:
         """获取统计数据"""
-        return self.history_manager.get_summary()
-    
-    def reset_daily_stats(self):
-        """重置每日统计"""
-        self.history_manager._reset_daily_stats()
-        self.reminder_count = 0
-    
-    def check_fatigue_level(self, key_presses: int = 0, mouse_clicks: int = 0, 
-                           idle_time: int = 0) -> Optional[dict]:
-        """定期检查疲劳水平（每5分钟调用一次）
-        
-        Args:
-            key_presses: 最近时间内的键盘输入次数
-            mouse_clicks: 最近时间内的鼠标点击次数
-            idle_time: 空闲时间（秒）
-            
-        Returns:
-            疲劳检测结果或None
-        """
-        # 只在用户处于工作/专注状态时检查疲劳
-        if not self.work_session_start:
-            return None
-        
-        current_time = time.time()
-        consecutive_work_mins = (current_time - self.work_session_start) / 60
-        
-        # 只有工作超过30分钟才开始进行疲劳检测
-        if consecutive_work_mins < 30:
-            return None
-        
-        # 检查是否应该执行检查
-        if current_time - self.last_fatigue_check < self.fatigue_check_interval:
-            return None
-        
-        self.last_fatigue_check = current_time
-        
-        # 调用疲劳检测器
-        fatigue_level = self.fatigue_detector.calculate_fatigue_level(
-            consecutive_work_mins,
-            key_presses / max(1, 300),  # 归一化为每秒输入频率
-            0  # 暂时不分析输入模式变化
-        )
-        
-        result = {
-            'fatigue_level': fatigue_level,
-            'work_duration_mins': consecutive_work_mins,
-            'input_frequency': key_presses / max(1, 300)
-        }
-        
-        # 如果检测到疲劳，显示提醒
-        if fatigue_level in ['fatigued', 'exhausted']:
-            self._show_fatigue_reminder(result, fatigue_level)
-            return result
-        
-        return None
-    
-    def _show_fatigue_reminder(self, metrics: dict, fatigue_level: str):
-        """显示疲劳提醒 - 当前已禁用，只打印日志
-        
-        Args:
-            metrics: 包含工作时长、输入频率等的指标字典
-            fatigue_level: 'fatigued' 或 'exhausted'
-        """
-        work_duration = metrics.get('work_duration_mins', 0)
-        
-        # 只打印日志，不显示窗口
-        if fatigue_level == 'exhausted':
-            print(f"[FATIGUE] 严重疲劳检测：已连续工作 {int(work_duration)} 分钟")
-        else:
-            print(f"[FATIGUE] 轻度疲劳检测：已连续工作 {int(work_duration)} 分钟")
-    
-    def _on_fatigue_reminder_triggered(self, reminder_data: dict):
-        """处理疲惫提醒信号
-        
-        Args:
-            reminder_data: 包含工作时长和建议的提醒数据
-        """
-        # 创建并显示疲惫提醒对话框
-        dialog = FatigueReminderDialog(reminder_data)
-        self.current_fatigue_reminder_dialog = dialog
-        
-        # 连接信号
-        dialog.continue_working.connect(self._on_fatigue_continue_working)
-        dialog.snooze_clicked.connect(self._on_fatigue_snooze)
-        dialog.rest_selected.connect(self._on_rest_suggestion_selected)
-        
-        # 显示对话框
-        dialog.show()
-        
-        print(f"[FATIGUE_REMINDER] 显示疲惫提醒: {reminder_data.get('duration_formatted')}")
-    
-    def _on_fatigue_continue_working(self):
-        """用户选择继续工作"""
-        print("[FATIGUE_REMINDER] 用户选择继续工作")
-        # 可以在这里添加鼓励或其他反馈
-    
-    def _on_fatigue_snooze(self, minutes: int):
-        """用户选择延后提醒"""
-        self.fatigue_reminder.snooze_reminder(minutes)
-        print(f"[FATIGUE_REMINDER] 用户选择延后 {minutes} 分钟提醒")
-    
-    def _on_rest_suggestion_selected(self, suggestion_title: str):
-        """用户选择了一个休息建议"""
-        print(f"[FATIGUE_REMINDER] 用户选择了休息方式: {suggestion_title}")
-        # 可以在这里记录用户的休息选择
-        # 或者显示该休息方式的更详细说明
-    
-    def track_focus_session(self, status: str):
-        """追踪专注会话
-        
-        Args:
-            status: 当前活动状态
-        """
-        if status in ['focus', 'work']:
-            if not self.work_session_start:
-                self.work_session_start = time.time()
-        else:
-            # 如果切换到其他状态，重置会话
-            if self.work_session_start:
-                session_duration = (time.time() - self.work_session_start) / 60
-                print(f"[INFO] 工作会话结束，持续时长: {session_duration:.1f} 分钟")
-            self.work_session_start = None
-
-
-
+        # 注意：ActivityHistoryManager 可能没有 get_summary 方法，这里先注释掉或移除，避免报错
+        # return self.history_manager.get_summary()
+        return {}

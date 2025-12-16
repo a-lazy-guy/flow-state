@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""智能提醒消息生成器"""
+"""
+[正在使用]
+用于生成智能的提醒文案（如"你已经看了一会儿视频啦"等）。
+被 ui.interaction_logic.reminder_logic.EntertainmentReminder 调用，用于丰富娱乐提醒的内容。
+"""
 
 class SmartReminderGenerator:
     """智能提醒消息生成器"""
