@@ -89,13 +89,13 @@ class ReminderOverlay(QtWidgets.QDialog):
         center_y = geometry.top() + (geometry.height() - window_height) // 2
         self.setGeometry(center_x, center_y, window_width, window_height)
         
-        # 主容器 - 学生版护眼绿主题
+        # 主容器 - 学生版暖黄主题
         self.container = QtWidgets.QWidget(self)
         self.container.setObjectName("VideoReminderDialog")  # 为了匹配 QSS
         self.container.setStyleSheet("""
             QWidget#VideoReminderDialog {
                 background-color: #E8F5E9;  /* 淡绿背景，护眼 */
-                border: 2px solid #A5D6A7;  /* 柔和边框 */
+                border: 2px solid #A5D6A7; /* 柔和边框 */
                 border-radius: 20px;
             }
         """)
@@ -158,9 +158,9 @@ class ReminderOverlay(QtWidgets.QDialog):
         msg_frame = QtWidgets.QFrame()
         msg_frame.setStyleSheet("""
             QFrame {
-                background-color: rgba(255, 255, 255, 0.4);
+                background-color: rgba(255, 255, 255, 0.6); /* 更清透的白色 */
                 border-radius: 15px;
-                border: 1px solid rgba(255, 213, 79, 0.3);
+                border: 1px solid rgba(165, 214, 167, 0.3); /* 绿色微边框 */
             }
         """)
         msg_layout = QtWidgets.QVBoxLayout(msg_frame)

@@ -184,6 +184,7 @@ def main():
                 on_status_update.fatigue_dialog = FatigueReminderDialog(severity='medium', duration=minutes)
                 on_status_update.fatigue_dialog.show()
         
+        # ========== 娱乐时间过长提醒逻辑 ==========
         # [新增] 强制测试：程序运行5秒后弹出娱乐提醒
         if not hasattr(on_status_update, 'test_entertainment_shown'):
             on_status_update.test_entertainment_shown = False
@@ -196,7 +197,6 @@ def main():
             # 模拟触发：状态=entertainment, 持续=10秒, 程度=low
             entertainment_reminder._handle_entertainment_warning('entertainment', 10, 'low')
 
-        # ========== 娱乐时间过长提醒逻辑 ==========
         # 使用 EntertainmentReminder 模块处理
         entertainment_reminder.on_status_update(result)
         

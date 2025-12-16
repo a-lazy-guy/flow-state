@@ -7,6 +7,7 @@ import time
 from typing import Optional
 
 from ui.component.reminder_simple import ReminderOverlay
+from ui.component.tomato_clock_dialog import TomatoClockDialog
 from ui.component.smart_reminder_generator import SmartReminderGenerator
 from data.activity_history_manager import ActivityHistoryManager
 
@@ -27,6 +28,7 @@ class EntertainmentReminder(QtCore.QObject):
         
         # UI组件
         self.overlay = ReminderOverlay(parent)
+        self.tomato_dialog = None  # 延迟创建
         
         # 智能组件
         self.message_generator = SmartReminderGenerator()
@@ -205,7 +207,33 @@ class EntertainmentReminder(QtCore.QObject):
     
     def on_work_button(self):
         """用户点击'继续努力'按钮"""
-        print("[INFO] 用户选择继续努力")
+        print("[INFO] 用户选择继续努力，弹出番茄钟确认")
+        
+        # 1. 关闭原来的提醒弹窗
+        self.overlay.close_reminder()
+        
+        # 2. 弹出番茄钟确认弹窗
+        if self.tomato_dialog is None:
+            self.tomato_dialog = TomatoClockDialog(self.overlay.parent())
+            self.tomato_dialog.start_tomato_clicked.connect(self._start_tomato_clock)
+            self.tomato_dialog.cancel_clicked.connect(self._cancel_tomato)
+        
+        self.tomato_dialog.show()
+        
+    def _start_tomato_clock(self):
+        """用户确认开启番茄钟"""
+        print("[INFO] 用户确认开启番茄钟")
+        # 这里应该调用实际的番茄钟启动逻辑
+        # 由于目前没有直接的番茄钟接口，我们打印一条消息并重置状态
+        self.reminder_count = 0
+        self.show_work_encouragement = True
+        
+        # TODO: 集成实际的番茄钟启动代码
+        # e.g., self.parent().start_tomato_clock(25)
+        
+    def _cancel_tomato(self):
+        """用户取消开启番茄钟"""
+        print("[INFO] 用户取消开启番茄钟，但仍视为回归工作")
         self.reminder_count = 0
         self.show_work_encouragement = True
     
