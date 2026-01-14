@@ -51,7 +51,7 @@ class SuspensionBall(QtWidgets.QWidget):
         # 动画属性
         self._rotation_angle = 0.0
         self._scale_factor = 1.0
-        self._opacity_level = 0.85 # 基础透明度
+        self._opacity_level = 1.0 # 基础透明度 (改为不透明)
         self._breath_offset = 0.0  # 呼吸叠加值
         
         # 数据属性
@@ -248,14 +248,14 @@ class SuspensionBall(QtWidgets.QWidget):
         painter.drawEllipse(QtCore.QPointF(0, 0), radius - 1, radius - 1)
         
         # 外部柔光晕 (呼吸效果的一部分)
-        if self._state == 'focus':
-            glow_color = QtGui.QColor(102, 187, 106)
-            glow_color.setAlphaF(0.3 + self._breath_offset) # 呼吸变化
+        # if self._state == 'focus':
+        #     glow_color = QtGui.QColor(102, 187, 106)
+        #     glow_color.setAlphaF(0.3 + self._breath_offset) # 呼吸变化
             
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(glow_color)
-            # 绘制一个稍大的同心圆作为光晕
-            painter.drawEllipse(QtCore.QPointF(0, 0), radius + 4, radius + 4)
+        #     painter.setPen(QtCore.Qt.NoPen)
+        #     painter.setBrush(glow_color)
+        #     # 绘制一个稍大的同心圆作为光晕
+        #     painter.drawEllipse(QtCore.QPointF(0, 0), radius + 4, radius + 4)
             
         # 恢复画笔绘制主体边框
         border_pen = QtGui.QPen(QtGui.QColor(102, 187, 106, 50), 1)
@@ -264,8 +264,8 @@ class SuspensionBall(QtWidgets.QWidget):
         painter.drawEllipse(QtCore.QPointF(0, 0), radius, radius)
         
         # --- 5. 绘制进度环 (悬停时) ---
-        if self._show_ring:
-            self._draw_progress_ring(painter, radius + 3)
+        # if self._show_ring:
+        #     self._draw_progress_ring(painter, radius + 3)
 
     def _draw_progress_ring(self, painter, radius):
         """绘制微进度环"""
@@ -301,13 +301,7 @@ class SuspensionBall(QtWidgets.QWidget):
         self._state = state
         
         # 1. 设置基础透明度
-        target_alpha = {
-            'focus': 0.85,
-            'distract_lite': 0.75,
-            'distract_heavy': 0.65,
-            'rest': 0.95,
-            'overwork': 0.55
-        }.get(state, 0.85)
+        target_alpha = 1.0
         
         # 平滑过渡透明度
         self.opacity_anim.stop()
@@ -397,7 +391,7 @@ class SuspensionBall(QtWidgets.QWidget):
         self._prev_opacity = self._opacity_level
         self.opacity_anim.stop()
         self.opacity_anim.setDuration(150)
-        self.opacity_anim.setEndValue(0.95)
+        self.opacity_anim.setEndValue(1.0)
         self.opacity_anim.start()
         
         # 延迟显示环和文字
