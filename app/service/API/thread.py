@@ -40,13 +40,26 @@ def ai_monitor_worker(msg_queue, running_event, ai_busy_flag=None):
         # 用于记录连续专注的时长
         global_focus_start_time = None
         
-        # 新增：保存上一次的 AI 分析结果，用于在不分析时维持状态
-        last_ai_status = "focus"
-        last_ai_summary = "准备就绪"
-        last_ai_raw = "focus"
+        # 新增：当前状态计时器 (用于娱乐提醒)
+        # 记录当前状态 (status) 是从什么时候开始的
+        current_status_start_time = time.time()
+        last_status_type = "focus" # 默认初始状态
         
         while running_event.is_set():
             start_loop = time.time()
+            
+            # --- 检查来自 UI 的重置信号 ---
+            try:
+                import os
+                if os.path.exists("reset_focus.signal"):
+                    print("[AI Worker] Received reset signal from UI. Resetting focus timer.")
+                    global_focus_start_time = None
+                    # 也可以选择重置 current_status_start_time，视需求而定
+                    current_status_start_time = time.time() 
+                    os.remove("reset_focus.signal")
+            except Exception as e:
+                print(f"[AI Worker] Error checking signal file: {e}")
+            # ---------------------------
             
             try:
                 # 1. 获取基础焦点数据 (高频)
@@ -101,99 +114,114 @@ def ai_monitor_worker(msg_queue, running_event, ai_busy_flag=None):
                     # --- 错峰执行检查 ---
                     if ai_busy_flag and ai_busy_flag.value:
                         print(f"[AI Worker] AI正忙(Web端占用)，跳过本次实时分析: {window_title}")
-                        # 虽然跳过 AI 分析，但我们仍需要记录这条活动 (使用默认/上一次状态)
-                        status = last_ai_status 
-                    else:
-                        prompt = f"窗口: '{window_title}' | 进程: {process_name} | 持续: {duration:.2f}s"
-                        # print(f"[AI Worker] 请求分析: {prompt}")
                         
-                        try:
-                            # 调用 Ollama
-                            json_str = analyze(prompt)
-                            
-                            # 解析 JSON
-                            ai_data = json.loads(json_str)
-                            
-                            # 提取关键字段
-                            status_raw = ai_data.get("状态", "focus")
-                            if "娱乐" in status_raw or "休息" in status_raw:
-                                status = "entertainment"
-                            elif "工作" in status_raw or "学习" in status_raw:
-                                status = "work"
-                            else:
-                                status = "focus"
-                                
-                            summary = ai_data.get("活动摘要", f"使用 {process_name}")
-                            
-                            # 更新缓存
-                            last_ai_status = status
-                            last_ai_summary = summary
-                            last_ai_raw = status_raw
-                            
-                            # print(f"[AI Worker] 分析结果: {status} | {summary}")
-                            
-                            last_analysis_time = time.time()
-                            last_analyzed_window = window_title # 标记已分析
-                            
-                            # 3. 存入数据库
-                            raw_data_str = json.dumps({
-                                "window": window_title,
-                                "process": process_name,
-                                "ai_raw": ai_data
-                            }, ensure_ascii=False)
-                            
-                            history_manager.update(status, summary=summary, raw_data=raw_data_str)
-                            
-                        except Exception as e:
-                            print(f"[AI Worker] AI 分析出错: {e}")
-                            status = last_ai_status
-                            summary = last_ai_summary
-                            status_raw = last_ai_raw
-
-                else:
-                    # 如果不分析，沿用上一次的状态
-                    status = last_ai_status
-                    summary = last_ai_summary
-                    status_raw = last_ai_raw
-                
-                # --- 构造推送到 UI 的消息 (无论是否分析都要推送) ---
-                current_time = time.time()
-                
-                # 1. 维护当前状态的持续时间 (用于娱乐提醒)
-                # 重新初始化变量 (如果之前被 SearchReplace 覆盖了)
-                if 'current_status_start_time' not in locals():
-                    current_status_start_time = current_time
-                if 'last_status_type' not in locals():
-                    last_status_type = "focus"
-                
-                if status != last_status_type:
-                    current_status_start_time = current_time
-                    last_status_type = status
+                        # 虽然跳过 AI 分析，但我们仍需要记录这条活动
+                        # 构造一个仅包含基础信息的 raw_data
+                        raw_data_str = json.dumps({
+                            "window": window_title,
+                            "process": process_name,
+                            "ai_raw": {} # 空的 AI 数据
+                        }, ensure_ascii=False)
+                        
+                        # 存入数据库 (使用默认状态 focus)
+                        history_manager.update("focus", summary=window_title, raw_data=raw_data_str)
+                        
+                        # 标记为已分析，避免下一轮循环立刻重试
+                        last_analysis_time = time.time()
+                        last_analyzed_window = window_title
+                        
+                        # 继续下一次循环
+                        continue
+                        
+                    prompt = f"窗口: '{window_title}' | 进程: {process_name} | 持续: {duration:.2f}s"
+                    print(f"[AI Worker] 请求分析: {prompt}")
                     
-                current_activity_duration = int(current_time - current_status_start_time)
+                    try:
+                        # 调用 Ollama
+                        json_str = analyze(prompt)
+                        
+                        # 解析 JSON
+                        ai_data = json.loads(json_str)
+                        
+                        # 提取关键字段
+                        # 兼容 AI 可能返回的不同字段名 (容错)
+                        status_raw = ai_data.get("状态", "focus")
+                        # 简单的状态映射
+                        if "娱乐" in status_raw or "休息" in status_raw:
+                            status = "entertainment"
+                        elif "工作" in status_raw or "学习" in status_raw:
+                            status = "work"
+                        else:
+                            status = "focus"
+                            
+                        summary = ai_data.get("活动摘要", f"使用 {process_name}")
+                        
+                        # 打印调试
+                        print(f"[AI Worker] 分析结果: {status} | {summary}")
+                        
+                        last_analysis_time = time.time()
+                        last_analyzed_window = window_title # 标记已分析
+                        
+                        # 3. 存入数据库
+                        # 注意：这里我们把 raw_data 存为 JSON 字符串以便后续回溯
+                        raw_data_str = json.dumps({
+                            "window": window_title,
+                            "process": process_name,
+                            "ai_raw": ai_data
+                        }, ensure_ascii=False)
+                        
+                        history_manager.update(status, summary=summary, raw_data=raw_data_str)
+                        
+                        # 构造推送到 UI 的消息
+                        # 修改持续专注时间的逻辑：
+                        # 使用本地维护的 global_focus_start_time 来计算连续时长
+                        
+                        current_time = time.time()
+                        
+                        # --- 维护当前状态的持续时间 (用于娱乐提醒) ---
+                        if status != last_status_type:
+                            # 状态切换了，重置计时器
+                            current_status_start_time = current_time
+                            last_status_type = status
+                            
+                        # 计算当前状态已经持续了多久
+                        current_activity_duration = int(current_time - current_status_start_time)
+                        
+                        # --- 维护专注总时长 (用于主界面显示) ---
+                        # 状态判定：如果是工作或专注，维护连续计时
+                        if status in ['work', 'focus']:
+                            if global_focus_start_time is None:
+                                global_focus_start_time = current_time
+                                # 如果是刚开始，可以减去当前窗口已经持续的时间，以补偿首次分析的延迟
+                                # global_focus_start_time -= duration 
+                            
+                            total_focus_duration = int(current_time - global_focus_start_time)
+                        else:
+                            # 如果是娱乐或其他，重置计时器
+                            global_focus_start_time = None
+                            total_focus_duration = 0 
+                        
+                        ui_msg = {
+                            "status": status,
+                            "duration": total_focus_duration, # 专注总时长 (给主界面)
+                            "current_activity_duration": current_activity_duration, # 当前活动时长 (给提醒逻辑)
+                            "current_window_duration": int(duration), # 窗口停留时长
+                            "message": summary,  # UI 上显示摘要
+                            "timestamp": time.strftime("%H:%M:%S"),
+                            "debug_info": f"AI: {status_raw}"
+                        }
+                        
+                        if not msg_queue.full():
+                            msg_queue.put(ui_msg)
+                            
+                    except json.JSONDecodeError:
+                        print(f"[AI Worker] JSON 解析失败: {json_str}")
+                    except Exception as e:
+                        print(f"[AI Worker] AI 分析出错: {e}")
                 
-                # 2. 维护专注总时长 (用于主界面显示)
-                if status in ['work', 'focus']:
-                    if global_focus_start_time is None:
-                        global_focus_start_time = current_time
-                    
-                    total_focus_duration = int(current_time - global_focus_start_time)
-                else:
-                    global_focus_start_time = None
-                    total_focus_duration = 0 
-                
-                ui_msg = {
-                    "status": status,
-                    "duration": total_focus_duration, 
-                    "current_activity_duration": current_activity_duration,
-                    "current_window_duration": int(duration),
-                    "message": summary, 
-                    "timestamp": time.strftime("%H:%M:%S"),
-                    "debug_info": f"AI: {status_raw}"
-                }
-                
-                if not msg_queue.full():
-                    msg_queue.put(ui_msg)
+                # 如果没有触发 AI 分析，也可以推送一个轻量级的心跳包给 UI (可选)
+                # 或者依靠上面的 AI 分析结果来更新
+                pass
                 
             except Exception as e:
                 print(f"【AI监控进程】循环错误: {e}")

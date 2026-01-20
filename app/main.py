@@ -73,8 +73,8 @@ def main(msg_queue=None):
         if not hasattr(on_status_update, 'last_fatigue_remind_time'):
             on_status_update.last_fatigue_remind_time = 0
             
-        # 当连续专注时长 >= 60秒 (测试用，实际可设为 45分钟=2700秒)
-        if duration >= 60:
+        # 当连续专注时长 >= 45分钟 (2700秒)
+        if duration >= 2700:
              # 距离上次提醒至少间隔 5 分钟
             if current_time - on_status_update.last_fatigue_remind_time > 300:
                 print(f"[MAIN] Triggering Fatigue Reminder: Focus Duration {duration}s")
