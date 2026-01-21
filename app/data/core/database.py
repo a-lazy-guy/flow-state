@@ -44,8 +44,8 @@ def init_db():
                 raw_data TEXT
             )
         ''')
-
-        # 3. 窗口会话表 () - 用于记录聚合后的窗口使用时长
+        #窗口会话表 () 
+        # 3. - 用于记录聚合后的窗口使用时长
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS window_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
