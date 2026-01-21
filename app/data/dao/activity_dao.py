@@ -118,6 +118,18 @@ class WindowSessionDAO:
             conn.commit()
 
     @staticmethod
+    def update_session_summary(session_id, summary):
+        """更新会话摘要"""
+        with get_db_connection() as conn:
+            conn.execute(
+                '''UPDATE window_sessions 
+                   SET summary = ? 
+                   WHERE id = ?''',
+                (summary, session_id)
+            )
+            conn.commit()
+
+    @staticmethod
     def get_today_sessions():
         """获取今天的会话记录 (用于日报时间轴)"""
         from datetime import date

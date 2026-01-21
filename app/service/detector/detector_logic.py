@@ -27,7 +27,7 @@ class AIProcessor:
       "日期":"格式为YYYY-MM-DD HH:MM（现在的时间）",
       "状态": "学习工作/娱乐/休息",
       "持续时间":"XXs（直接将源数据的持续时间复制粘贴到这里）",
-      "活动摘要": "结构化用户活动摘要（Markdown格式，不超过30字）"
+      "活动摘要": "结构化用户活动摘要（不超过15字）"
     }"""
 
     def process(self, text, system_prompt=None, json_mode=True):

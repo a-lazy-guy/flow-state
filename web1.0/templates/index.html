@@ -369,7 +369,7 @@
         }
 
         .typing-cursor::after {
-            content: 'â–‹';
+            content: '¨ƒ';
             display: inline-block;
             vertical-align: baseline;
             animation: blink 1s step-end infinite;
@@ -779,22 +779,22 @@
             
             <!-- Persistent Navigation Tabs -->
             <div class="nav-tabs">
-                <div class="nav-btn active" id="btn-7days" onclick="switchTab('7days')" data-i18n="nav.7days">æœ€è¿‘7å¤©</div>
-                <div class="nav-btn" id="btn-30days" onclick="switchTab('30days')" data-i18n="nav.30days">æœ€è¿‘30å¤©</div>
-                <div class="nav-btn" id="btn-search" onclick="switchTab('search')" data-i18n="nav.search">AI æœç´¢</div>
+                <div class="nav-btn active" id="btn-7days" onclick="switchTab('7days')" data-i18n="nav.7days">×î½ü7Ìì</div>
+                <div class="nav-btn" id="btn-30days" onclick="switchTab('30days')" data-i18n="nav.30days">×î½ü30Ìì</div>
+                <div class="nav-btn" id="btn-search" onclick="switchTab('search')" data-i18n="nav.search">AI ÖÇÄÜËÑË÷</div>
             </div>
 
             <!-- Dashboard Stats (New) -->
             <div id="stats-dashboard" style="padding: 15px 20px 0 20px; display: flex; gap: 15px;">
                 <div style="flex: 1; background: linear-gradient(135deg, #a4bf5a, #789035); padding: 15px; border-radius: 12px; color: white; box-shadow: 0 4px 10px rgba(120, 144, 53, 0.2);">
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">ä»Šæ—¥ä¸“æ³¨æ—¶é•¿</div>
+                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">½ñÈÕ×¨×¢Ê±³¤</div>
                     <div style="font-size: 24px; font-weight: bold;" id="today-focus-time">--:--</div>
-                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">é«˜æ•ˆäº§å‡º</div>
+                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">¸ßĞ§²ú³ö</div>
                 </div>
                 <div style="flex: 1; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e0e0e0; color: #4f6610;">
-                    <div style="font-size: 12px; color: #789035; margin-bottom: 5px;">ä»Šæ—¥å¨±ä¹/ä¼‘æ¯</div>
+                    <div style="font-size: 12px; color: #789035; margin-bottom: 5px;">ÓéÀÖ/ÃşÓãÊ±³¤</div>
                     <div style="font-size: 24px; font-weight: bold;" id="today-ent-time">--:--</div>
-                    <div style="font-size: 12px; margin-top: 5px; color: #a4bf5a;">é€‚å½“æ”¾æ¾</div>
+                    <div style="font-size: 12px; margin-top: 5px; color: #a4bf5a;">Ğè×¢ÒâĞİÏ¢</div>
                 </div>
             </div>
 
@@ -802,12 +802,12 @@
             <div id="panel-history" class="panel-view active">
                 <div class="history-container">
                     <div class="history-header">
-                        <span id="history-title" data-i18n="history.title.7">æœ€è¿‘7å¤©æµè§ˆè®°å½•</span>
-                        <span style="font-size: 12px; font-weight: normal; color: #789035;" data-i18n="history.source">æ•°æ®æ¥æº: æœ¬åœ°ç›‘æ§</span>
+                        <span id="history-title" data-i18n="history.title.7">×î½ü7Ììä¯ÀÀ¼ÇÂ¼</span>
+                        <span style="font-size: 12px; font-weight: normal; color: #789035;" data-i18n="history.source">Êı¾İÀ´Ô´: ±¾µØ¼à¿Ø</span>
                     </div>
                     <div class="history-list" id="history-list">
                         <!-- JS Dynamic -->
-                        <div style="text-align: center; color: #789035; margin-top: 50px;">æ­£åœ¨åŠ è½½æ•°æ®...</div>
+                        <div style="text-align: center; color: #789035; margin-top: 50px;">ÕıÔÚ¼ÓÔØÊı¾İ...</div>
                     </div>
                 </div>
             </div>
@@ -816,27 +816,27 @@
             <div id="panel-search" class="panel-view">
                 <div class='ai-search-container'>
                     <div class='ai-search-header'>
-                        <div class='ai-search-title' data-i18n="search.title">AI æ™ºèƒ½æœç´¢</div>
-                        <div class='ai-search-subtitle' data-i18n="search.subtitle">æ¢ç´¢ä½ çš„æ•°å­—è¶³è¿¹ä¸è®°å¿†</div>
+                        <div class='ai-search-title' data-i18n="search.title">AI ÖÇÄÜËÑË÷ÖúÊÖ</div>
+                        <div class='ai-search-subtitle' data-i18n="search.subtitle">Ì½Ë÷ÄãµÄÊı×Ö×ã¼£Óë¼ÇÒä</div>
                     </div>
                     
                     <div class='ai-input-box'>
                         <svg viewBox='0 0 24 24' width='24' height='24' fill='#a4bf5a'><path d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/></svg>
-                        <input type='text' class='ai-input' id='ai-search-input' data-i18n-placeholder="search.placeholder" placeholder='æœç´¢å…³é”®è¯ã€åº”ç”¨æˆ–ä¸»é¢˜...' onkeypress='handleAiSearch(event)'>
+                        <input type='text' class='ai-input' id='ai-search-input' data-i18n-placeholder="search.placeholder" placeholder='ËÑË÷¹Ø¼ü´Ê¡¢Ó¦ÓÃ»òÖ÷Ìâ...' onkeypress='handleAiSearch(event)'>
                     </div>
 
                     <div class='filter-tags'>
-                        <div class='filter-tag active' data-i18n="search.filter.all">å…¨éƒ¨</div>
-                        <div class='filter-tag' data-i18n="search.filter.doc">æ–‡æ¡£</div>
-                        <div class='filter-tag' data-i18n="search.filter.web">ç½‘é¡µ</div>
-                        <div class='filter-tag' data-i18n="search.filter.chat">èŠå¤©</div>
+                        <div class='filter-tag active' data-i18n="search.filter.all">È«²¿</div>
+                        <div class='filter-tag' data-i18n="search.filter.doc">ÎÄµµ</div>
+                        <div class='filter-tag' data-i18n="search.filter.web">ÍøÒ³</div>
+                        <div class='filter-tag' data-i18n="search.filter.chat">ÁÄÌì</div>
                     </div>
 
                     <div class='search-results-area' id='ai-results-area'>
                         <!-- Empty State -->
                         <div style='text-align: center; color: #789035; margin-top: 40px; opacity: 0.7;'>
-                            è¾“å…¥å…³é”®è¯å¼€å§‹æœç´¢<br>
-                            ä¾‹å¦‚ï¼š"ä¸Šå‘¨çš„é¡¹ç›®æ–‡æ¡£" æˆ– "Chrome æµè§ˆå†å²"
+                            ÔİÎŞËÑË÷½á¹û<br>
+                            ÊÔÒ»ÊÔ£º"ÎÒµÄÖÜ±¨Ğ´ÁËÊ²Ã´" »ò "Chrome ä¯ÀÀ¼ÇÂ¼"
                         </div>
                     </div>
                 </div>
@@ -862,12 +862,12 @@
                 </div>
                 
                 <div class='chat-messages' id='chat-messages'>
-                    <div class='message ai' data-i18n="chat.welcome">ä½ å¥½ï¼æˆ‘æ˜¯ä½ çš„ Flow-State åŠ©æ‰‹ã€‚è¿™é‡Œå¯ä»¥æŸ¥çœ‹ä½ çš„å†å²è¡Œä¸ºæ•°æ®ï¼Œä¹Ÿå¯ä»¥å’Œæˆ‘èŠå¤©ã€‚</div>
+                    <div class='message ai' data-i18n="chat.welcome">ÄãºÃ£¡ÎÒÊÇ Flow-State ÖúÊÖ£¬Äã¿ÉÒÔ²éÑ¯ÀúÊ·Êı¾İ»òÓëÎÒÁÄÌì¡£</div>
                 </div>
                 
                 <div class='input-area'>
                     <div class='input-wrapper'>
-                        <input type='text' class='input-box' id='chat-input' data-i18n-placeholder="chat.placeholder" placeholder='è¯¢é—® Flow-State åŠ©æ‰‹...'>
+                        <input type='text' class='input-box' id='chat-input' data-i18n-placeholder="chat.placeholder" placeholder='Ñ¯ÎÊ Flow-State ÖúÊÖ...'>
                     </div>
                     <div class='send-btn' id='send-btn'>
                         <svg viewBox='0 0 24 24'><path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/></svg>
@@ -885,8 +885,8 @@
             <!-- Right Sidebar -->
             <div class='right-sidebar' id='right-sidebar'>
                 <div style="padding: 20px; color: var(--color-green-mid); font-size: 14px; text-align: center;">
-                    <div style="margin-bottom: 10px; font-weight: bold;">æ‰©å±•ä¿¡æ¯</div>
-                    <div style="font-size: 12px; opacity: 0.8;">è¿™é‡Œå¯ä»¥æ”¾ç½®æ›´å¤šå·¥å…·æˆ–ä¸Šä¸‹æ–‡ä¿¡æ¯ã€‚</div>
+                    <div style="margin-bottom: 10px; font-weight: bold;">À©Õ¹Ãæ°å</div>
+                    <div style="font-size: 12px; opacity: 0.8;">ÕâÀï¿ÉÒÔ·ÅÖÃ¸ü¶à¹¤¾ß»òÉÏÏÂÎÄĞÅÏ¢¡£</div>
                 </div>
             </div>
         </div>
@@ -897,24 +897,24 @@
     <div class='modal-overlay' id='settings-modal'>
         <div class='settings-modal'>
             <div class='settings-header'>
-                <span data-i18n="settings.title">è®¾ç½®</span>
+                <span data-i18n="settings.title">ÉèÖÃ</span>
                 <span class='close-btn' onclick='toggleSettings()'>&times;</span>
             </div>
             
             <!-- General -->
-            <div class='settings-section-title' data-i18n="settings.general">å¸¸è§„</div>
+            <div class='settings-section-title' data-i18n="settings.general">³£¹æÉèÖÃ</div>
             <div class='setting-item'>
-                <div class='setting-label' data-i18n="settings.language">è¯­è¨€</div>
+                <div class='setting-label' data-i18n="settings.language">ÓïÑÔÉèÖÃ</div>
                 <select class="settings-select" id="language-select" onchange="changeLanguage(this.value)">
-                    <option value="zh">ä¸­æ–‡</option>
+                    <option value="zh">¼òÌåÖĞÎÄ</option>
                     <option value="en">English</option>
                 </select>
             </div>
 
             <!-- Appearance -->
-            <div class='settings-section-title' data-i18n="settings.appearance">å¤–è§‚</div>
+            <div class='settings-section-title' data-i18n="settings.appearance">Íâ¹ÛÉèÖÃ</div>
             <div class='setting-item'>
-                <div class='setting-label' data-i18n="settings.theme">ä¸»é¢˜è‰²</div>
+                <div class='setting-label' data-i18n="settings.theme">Ö÷ÌâÑÕÉ«</div>
                 <div class="color-options">
                     <div class="color-circle active" style="background: #a4bf5a;" onclick="setTheme('green', this)"></div>
                     <div class="color-circle" style="background: #6495ED;" onclick="setTheme('blue', this)"></div>
@@ -923,7 +923,7 @@
                 </div>
             </div>
             <div class='setting-item'>
-                <div class='setting-label' data-i18n="settings.compact">ç´§å‡‘æ¨¡å¼</div>
+                <div class='setting-label' data-i18n="settings.compact">½ô´ÕÄ£Ê½</div>
                 <label class='switch'>
                     <input type='checkbox' id="compact-toggle" onchange="toggleCompactMode(this.checked)">
                     <span class='slider'></span>
@@ -931,9 +931,9 @@
             </div>
 
             <!-- Data -->
-            <div class='settings-section-title' data-i18n="settings.data">æ•°æ®</div>
+            <div class='settings-section-title' data-i18n="settings.data">Êı¾İ¹ÜÀí</div>
             <div class='setting-item'>
-                <div class='setting-label' data-i18n="settings.auto_record">è‡ªåŠ¨è®°å½•æµè§ˆæ•°æ®</div>
+                <div class='setting-label' data-i18n="settings.auto_record">×Ô¶¯¼ÇÂ¼»î¶¯</div>
                 <label class='switch'>
                     <input type='checkbox' checked>
                     <span class='slider'></span>
@@ -941,7 +941,7 @@
             </div>
             
             <div class='setting-item'>
-                <div class='setting-label' data-i18n="settings.notifications">é€šçŸ¥æé†’</div>
+                <div class='setting-label' data-i18n="settings.notifications">ÏûÏ¢Í¨Öª</div>
                 <label class='switch'>
                     <input type='checkbox' checked>
                     <span class='slider'></span>
@@ -949,7 +949,7 @@
             </div>
 
             <div style='margin-top: 20px; text-align: right;'>
-                <button onclick='toggleSettings()' style='padding: 8px 20px; background: var(--color-green-dark); color: white; border: none; border-radius: 6px; cursor: pointer;' data-i18n="settings.save">ä¿å­˜</button>
+                <button onclick='toggleSettings()' style='padding: 8px 20px; background: var(--color-green-dark); color: white; border: none; border-radius: 6px; cursor: pointer;' data-i18n="settings.save">±£´æÉèÖÃ</button>
             </div>
         </div>
     </div>
@@ -958,43 +958,43 @@
         // --- Settings Logic (Hoisted) ---
         const i18n = {
             zh: {
-                "settings.title": "è®¾ç½®",
-                "settings.general": "å¸¸è§„",
-                "settings.language": "è¯­è¨€",
-                "settings.appearance": "å¤–è§‚",
-                "settings.theme": "ä¸»é¢˜è‰²",
-                "settings.compact": "ç´§å‡‘æ¨¡å¼",
-                "settings.data": "æ•°æ®",
-                "settings.auto_record": "è‡ªåŠ¨è®°å½•æµè§ˆæ•°æ®",
-                "settings.notifications": "é€šçŸ¥æé†’",
-                "settings.save": "ä¿å­˜",
-                "nav.7days": "æœ€è¿‘7å¤©",
-                "nav.30days": "æœ€è¿‘30å¤©",
-                "nav.search": "AI æœç´¢",
-                "history.title.7": "æœ€è¿‘7å¤©æµè§ˆè®°å½•",
-                "history.title.30": "æœ€è¿‘30å¤©æµè§ˆè®°å½•",
-                "history.source": "æ•°æ®æ¥æº: æœ¬åœ°ç›‘æ§",
-                "search.title": "AI æ™ºèƒ½æœç´¢",
-                "search.subtitle": "æ¢ç´¢ä½ çš„æ•°å­—è¶³è¿¹ä¸è®°å¿†",
-                "search.placeholder": "æœç´¢å…³é”®è¯ã€åº”ç”¨æˆ–ä¸»é¢˜...",
-                "search.filter.all": "å…¨éƒ¨",
-                "search.filter.doc": "æ–‡æ¡£",
-                "search.filter.web": "ç½‘é¡µ",
-                "search.filter.chat": "èŠå¤©",
-                "search.recent": "æœ€è¿‘æœç´¢",
+                "settings.title": "ÉèÖÃ",
+                "settings.general": "³£¹æÉèÖÃ",
+                "settings.language": "ÓïÑÔÉèÖÃ",
+                "settings.appearance": "Íâ¹ÛÉèÖÃ",
+                "settings.theme": "Ö÷ÌâÑÕÉ«",
+                "settings.compact": "½ô´ÕÄ£Ê½",
+                "settings.data": "Êı¾İ¹ÜÀí",
+                "settings.auto_record": "×Ô¶¯¼ÇÂ¼»î¶¯",
+                "settings.notifications": "ÏûÏ¢Í¨Öª",
+                "settings.save": "±£´æÉèÖÃ",
+                "nav.7days": "×î½ü7Ìì",
+                "nav.30days": "×î½ü30Ìì",
+                "nav.search": "AI ÖÇÄÜËÑË÷",
+                "history.title.7": "×î½ü7Ììä¯ÀÀ¼ÇÂ¼",
+                "history.title.30": "×î½ü30Ììä¯ÀÀ¼ÇÂ¼",
+                "history.source": "Êı¾İÀ´Ô´: ±¾µØ¼à¿Ø",
+                "search.title": "AI ÖÇÄÜËÑË÷ÖúÊÖ",
+                "search.subtitle": "Ì½Ë÷ÄãµÄÊı×Ö×ã¼£Óë¼ÇÒä",
+                "search.placeholder": "ËÑË÷¹Ø¼ü´Ê¡¢Ó¦ÓÃ»òÖ÷Ìâ...",
+                "search.filter.all": "È«²¿",
+                "search.filter.doc": "ÎÄµµ",
+                "search.filter.web": "ÍøÒ³",
+                "search.filter.chat": "ÁÄÌì",
+                "search.recent": "×î½üËÑË÷",
                 "chat.title": "Flow-State Chat",
-                "chat.placeholder": "è¯¢é—® Flow-State åŠ©æ‰‹...",
-                "chat.welcome": "ä½ å¥½ï¼æˆ‘æ˜¯ä½ çš„ Flow-State åŠ©æ‰‹ã€‚è¿™é‡Œå¯ä»¥æŸ¥çœ‹ä½ çš„å†å²è¡Œä¸ºæ•°æ®ï¼Œä¹Ÿå¯ä»¥å’Œæˆ‘èŠå¤©ã€‚",
+                "chat.placeholder": "Ñ¯ÎÊ Flow-State ÖúÊÖ...",
+                "chat.welcome": "ÄãºÃ£¡ÎÒÊÇ Flow-State ÖúÊÖ£¬Äã¿ÉÒÔ²éÑ¯ÀúÊ·Êı¾İ»òÓëÎÒÁÄÌì¡£",
                 // Dynamic
-                "msg.loading": "æ­£åœ¨åŠ è½½æ•°æ®...",
-                "msg.no_records": "æš‚æ— è®°å½•",
-                "msg.failed": "åŠ è½½å¤±è´¥",
-                "msg.ai_thinking": "AI æ­£åœ¨æ€è€ƒ",
-                "msg.ai_analyzing": "æ­£åœ¨åˆ†æå†å²è®°å½•...",
-                "msg.no_results": "æœªæ‰¾åˆ°ä¸ \"{query}\" ç›¸å…³çš„è®°å½•ã€‚",
-                "msg.ai_answer": "AI æ™ºèƒ½å›ç­”",
-                "msg.sources": "æ¥æºè®°å½•",
-                "msg.relevant": "ç›¸å…³è®°å½•"
+                "msg.loading": "ÕıÔÚ¼ÓÔØÊı¾İ...",
+                "msg.no_records": "ÔİÎŞ¼ÇÂ¼",
+                "msg.failed": "¼ÓÔØÊ§°Ü",
+                "msg.ai_thinking": "AI ÕıÔÚË¼¿¼",
+                "msg.ai_analyzing": "ÕıÔÚ·ÖÎöÀúÊ·¼ÇÂ¼...",
+                "msg.no_results": "Î´ÕÒµ½¹ØÓÚ \"{query}\" µÄÏà¹Ø¼ÇÂ¼¡£",
+                "msg.ai_answer": "AI ÖÇÄÜ»Ø´ğ",
+                "msg.sources": "²Î¿¼À´Ô´",
+                "msg.relevant": "Ïà¹Ø¼ÇÂ¼"
             },
             en: {
                 "settings.title": "Settings",
@@ -1232,7 +1232,7 @@
             } else {
                 showPanel('history');
                 const days = (tabId === '7days') ? 7 : 30;
-                document.getElementById('history-title').textContent = (days === 7) ? 'æœ€è¿‘7å¤©æµè§ˆè®°å½•' : 'æœ€è¿‘30å¤©æµè§ˆè®°å½•';
+                document.getElementById('history-title').textContent = (days === 7) ? '×î½ü7Ììä¯ÀÀ¼ÇÂ¼' : '×î½ü30Ììä¯ÀÀ¼ÇÂ¼';
                 loadHistory(days);
             }
         }
@@ -1284,7 +1284,7 @@
             try {
                 const response = await fetch('/api/history/recent?days=' + days);
                 const json = await response.json();
-                // å…¼å®¹ç›´æ¥è¿”å›æ•°ç»„æˆ– {code:200, data:[]} æ ¼å¼
+                // ¼æÈİºó¶ËÖ±½Ó·µ»ØÊı×é»ò {code:200, data:[]} ¸ñÊ½
                 const data = Array.isArray(json) ? json : (json.data || []);
                 allHistoryData = data;
                 renderHistoryList(data, 'history-list');
@@ -1303,8 +1303,8 @@
             
             listEl.innerHTML = data.map((item, index) => {
                 const initial = item.app_name ? item.app_name.charAt(0).toUpperCase() : '?';
-                const displayTitle = item.window_title || item.app_name || 'æœªå‘½å';
-                const displayApp = item.app_name || 'æœªçŸ¥åº”ç”¨';
+                const displayTitle = item.window_title || item.app_name || 'Î´ÃüÃû';
+                const displayApp = item.app_name || 'Î´ÖªÓ¦ÓÃ';
                 
                 // Parse timestamp (YYYY-MM-DD HH:MM:SS) to YYYY-MM-DD HH:MM
                 let time = '--:--';
@@ -1341,7 +1341,7 @@
             // Add Baffle (Footer)
             listEl.innerHTML += `
                 <div style='height: 40px; display: flex; align-items: center; justify-content: center; color: var(--color-text-sub); opacity: 0.5; font-size: 12px; margin-top: 10px; margin-bottom: 20px;'>
-                    <span>åˆ°åº•äº† æ²¡æœ‰æ›´å¤šè®°å½•</span>
+                    <span>µ½µ×ÁË Ã»ÓĞ¸ü¶à¼ÇÂ¼</span>
                 </div>
             `;
         }
@@ -1349,7 +1349,7 @@
         // Removed old switchHistoryTab function as it is replaced by switchTab
 
         // --- AI Search Logic (Panel 2) ---
-        let recentSearches = ['æˆ‘çš„å·¥ä½œæ•ˆç‡', 'Chrome å†å²', 'Python å­¦ä¹ '];
+        let recentSearches = ['·ÖÎöÎÒµÄ¹¤×÷Ğ§ÂÊ', 'Chrome ä¯ÀÀ¼ÇÂ¼', 'Python Ñ§Ï°'];
 
         function handleAiSearch(e) {
             if (e.key === 'Enter') {
@@ -1436,17 +1436,17 @@
                     </div>
                     <div class='ai-summary-content' id='ai-stream-content'></div>
                     <div class='follow-up-chips' id='follow-ups' style='display:none;'>
-                        <div class='follow-up-chip' onclick='setSearch("æˆ‘çš„å·¥ä½œæ•ˆç‡")'>
+                        <div class='follow-up-chip' onclick='setSearch("·ÖÎöÎÒµÄ¹¤×÷Ğ§ÂÊ")'>
                             <svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor'><path d='M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z'/></svg>
-                            æˆ‘çš„å·¥ä½œæ•ˆç‡
+                            ·ÖÎöÎÒµÄ¹¤×÷Ğ§ÂÊ
                         </div>
-                        <div class='follow-up-chip' onclick='setSearch("æœ€è¿‘çš„æ´»åŠ¨")'>
+                        <div class='follow-up-chip' onclick='setSearch("×Ü½á½ñÌìµÄ»î¶¯")'>
                             <svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor'><path d='M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'/></svg>
-                            æœ€è¿‘çš„æ´»åŠ¨
+                            ×Ü½á½ñÌìµÄ»î¶¯
                         </div>
-                        <div class='follow-up-chip' onclick='setSearch("æ˜¾ç¤ºæ¥æº")'>
+                        <div class='follow-up-chip' onclick='setSearch("ÏÔÊ¾¸ü¶à")'>
                             <svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor'><path d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/></svg>
-                            æ˜¾ç¤ºæ¥æº
+                            ÏÔÊ¾¸ü¶à
                         </div>
                     </div>
                 </div>
@@ -1473,9 +1473,9 @@
             resultsArea.innerHTML += `<div class='result-group-title'>${t('msg.sources')}</div><div class='history-list'>${listHTML}</div>`;
 
             // Start Streaming
-            const appName = results[0]?.app_name || 'åº”ç”¨';
+            const appName = results[0]?.app_name || 'Ó¦ÓÃ';
             const count = results.length;
-            const text = `æ ¹æ®æ‚¨çš„å†å²è®°å½•ï¼Œæˆ‘æ‰¾åˆ°äº† ${count} æ¡ç›¸å…³å†…å®¹[1]ã€‚è¿™äº›æ´»åŠ¨ä¸»è¦å‘ç”Ÿåœ¨ ${appName} ä¸­[2]ã€‚\n\nçœ‹æ¥æ‚¨åœ¨ "${query}" æ–¹é¢èŠ±è´¹äº†ä¸å°‘æ—¶é—´ã€‚å»ºè®®æ‚¨å›é¡¾ä¸€ä¸‹è¿™äº›æ–‡æ¡£ï¼Œæˆ–è€…æŸ¥çœ‹ç›¸å…³çš„æ²Ÿé€šè®°å½•ä»¥è·å–æ›´å¤šä¸Šä¸‹æ–‡ã€‚`;
+            const text = `¸ù¾İÄãµÄËÑË÷£¬ÎÒÎªÄãÕÒµ½ÁË ${count} Ìõ¼ÇÂ¼¡£ÆäÖĞ×î½üµÄÒ»ÌõÊÇ¹ØÓÚ [1]${appName} µÄÊ¹ÓÃ¡£[2]\n\nÄãËÆºõÔÚ²éÑ¯ "${query}" Ïà¹ØµÄÄÚÈİ¡£ÕâĞ©¼ÇÂ¼±íÃ÷ÄãÔÚÕâ¶ÎÊ±¼äÄÚ×¨×¢ÓÚÏà¹ØÈÎÎñ¡£Èç¹ûĞèÒª¸üÏêÏ¸µÄ·ÖÎö£¬Çë¸æËßÎÒ¡£`;
             
             streamText(text, 'ai-stream-content', () => {
                 document.getElementById('follow-ups').style.display = 'flex';
@@ -1545,8 +1545,8 @@
                 const formatTime = (seconds) => {
                     const h = Math.floor(seconds / 3600);
                     const m = Math.floor((seconds % 3600) / 60);
-                    if (h > 0) return `${h}å°æ—¶ ${m}åˆ†`;
-                    return `${m}åˆ†é’Ÿ`;
+                    if (h > 0) return `${h}Ğ¡Ê± ${m}·ÖÖÓ`;
+                    return `${m}·ÖÖÓ`;
                 };
                 
                 document.getElementById('today-focus-time').textContent = formatTime(data.total_productive_seconds);
@@ -1624,14 +1624,14 @@
                 if (data.error) {
                     addMessage('ai', 'Error: ' + data.error);
                 } else {
-                    // æ”¯æŒ Markdown æ¸²æŸ“ï¼ˆç®€å•ç‰ˆï¼‰
+                    // ¼òµ¥µÄ Markdown ´¦Àí£¨¼Ó´ÖºÍ»»ĞĞ£©
                     const content = data.response
                         .replace(/\n/g, '<br>')
                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                     
                     const aiDiv = document.createElement('div');
                     aiDiv.className = 'message ai';
-                    aiDiv.innerHTML = content; // ä½¿ç”¨ innerHTML æ¸²æŸ“æ ¼å¼åŒ–åçš„æ–‡æœ¬
+                    aiDiv.innerHTML = content; // Ê¹ÓÃ innerHTML äÖÈ¾¸ñÊ½»¯ÎÄ±¾
                     chatMessages.appendChild(aiDiv);
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }

@@ -128,6 +128,13 @@ class ActivityHistoryManager:
                     if is_same_session:
                         # 是同一个会话，更新时长
                         WindowSessionDAO.update_session_duration(self._last_window_session['id'], duration)
+                        
+                        # 关键新增：如果新的 summary 是有效的（不是窗口标题），且与旧的不同，则更新
+                        # 判断是否为有效 AI 摘要：通常 summary 会包含"活动摘要"等字样，或者长度不同，
+                        # 简单逻辑：只要 summary 不为空且不等于窗口标题，就认为是更有价值的信息
+                        if summary and summary != window_title:
+                            # 也可以加一个判断，避免被旧的覆盖？通常最新的总是更准
+                            WindowSessionDAO.update_session_summary(self._last_window_session['id'], summary)
                     else:
                         # 是新会话，创建新记录
                         # start_time 应该是当前时间减去 duration (因为 duration 是刚刚过去的时间)

@@ -52,58 +52,45 @@ def create_app(ai_busy_flag=None):
     def get_recent_history():
         try:
             # 延迟导入以避免循环依赖或上下文问题
-            from app.data.dao.activity_dao import OcrDAO, ActivityDAO
+            from app.data.dao.activity_dao import OcrDAO, WindowSessionDAO
             import json
             
             records = []
             
-            # 1. 优先尝试获取 ActivityDAO 的数据 (AI 监控产生的真实数据)
-            activities = ActivityDAO.get_recent_activities(limit=50)
-            if activities:
-                for act in activities:
-                    # 解析 raw_data JSON
-                    raw_data = act.get('raw_data', '{}')
-                    app_name = "Unknown"
-                    window_title = act.get('summary', 'No Title')
+            # 1. 优先使用 Window Sessions (聚合后的高质量数据)
+            # 获取今天的会话 (或者可以修改 DAO 支持获取最近 N 条)
+            sessions = WindowSessionDAO.get_today_sessions()
+            
+            # 如果今天还没数据，或者太少，可以尝试获取最近的 N 条 (需修改 DAO，暂用 today)
+            # 反转顺序，让最新的在前面
+            sessions.reverse()
+            
+            if sessions:
+                for s in sessions:
+                    # s: id, start_time, end_time, window_title, duration, status, summary
                     
-                    if raw_data:
-                        try:
-                            data_obj = json.loads(raw_data)
-                            # 1. 优先使用系统原始采集的 process/window (最准确)
-                            if 'process' in data_obj:
-                                app_name = data_obj['process']
-                            if 'window' in data_obj:
-                                window_title = data_obj['window']
-                            
-                            # 2. 如果顶层没有，尝试从 ai_raw 解析 (兼容旧数据)
-                            # ai_raw 是 AI 返回的，可能包含 "活动摘要" 等
-                            if app_name == "Unknown" or window_title == "No Title":
-                                ai_raw = data_obj.get('ai_raw', {})
-                                if ai_raw:
-                                    # AI 摘要通常放在 summary 字段，或者 raw_data 的 ai_raw 里
-                                    # 这里我们可以尝试提取更有意义的标题
-                                    summary = ai_raw.get('活动摘要')
-                                    if summary:
-                                         window_title = summary
-                        except:
-                            pass
-                            
-                    # Ensure timestamp is a string in the expected format
-                    ts = act.get('timestamp')
-                    if hasattr(ts, 'strftime'):
-                        ts_str = ts.strftime('%Y-%m-%d %H:%M:%S')
-                    else:
-                        ts_str = str(ts) if ts else ''
+                    # 优先使用 summary (AI 摘要)，如果没有则使用窗口标题
+                    title = s.get('summary')
+                    if not title or title == s.get('window_title'):
+                        # 如果 summary 和 window_title 一样，可能是还没被 AI 润色
+                        # 尝试从 window_title 截取更有意义的部分
+                        title = s.get('window_title', 'Unknown')
+                        
+                    content_str = f"Status: {s.get('status')} | Duration: {s.get('duration')}s"
+                    if s.get('process_name'):
+                        content_str += f" | App: {s.get('process_name')}"
 
                     records.append({
-                        'id': act.get('id'),
-                        'timestamp': ts_str,
-                        'app_name': app_name,
-                        'window_title': window_title,
-                        'content': f"Status: {act.get('status')} | Duration: {act.get('duration')}s"
+                        'id': s.get('id'),
+                        'timestamp': s.get('start_time'), # 已经是字符串格式
+                        'app_name': s.get('process_name', 'Unknown'),
+                        'window_title': title, # 这里放摘要或标题
+                        'content': content_str,
+                        'duration': s.get('duration'),
+                        'status': s.get('status')
                     })
             
-            # 2. 如果 Activity 表没数据，尝试获取 OCR 记录
+            # 2. 如果 Window Sessions 没数据 (比如刚启动)，尝试获取 OCR 记录
             if not records:
                 ocr_records = OcrDAO.get_recent_records(limit=50)
                 if ocr_records:
