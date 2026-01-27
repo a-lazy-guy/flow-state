@@ -80,13 +80,30 @@ class ReportGenerator:
             """, (s_str, e_str))
             data["daily_stats"] = [dict(row) for row in cursor.fetchall()]
 
-            # 2. Core Events (Top 1 per day)
+            # 2. Core Events (Top 1 per day, prioritize Focus but include Entertainment if significant)
+            # 策略调整：不仅仅取 rank=1 的，而是获取前 2 名，方便后续逻辑判断是否要展示“娱乐”
+            print(f"DEBUG: Fetching core events between {s_str} and {e_str}")
             cursor = conn.execute("""
-                SELECT date, app_name, clean_title, total_duration 
+                SELECT date, app_name, clean_title, total_duration, category 
                 FROM core_events 
-                WHERE date BETWEEN ? AND ? AND rank = 1
+                WHERE date BETWEEN ? AND ? AND rank <= 2
+                ORDER BY date ASC, rank ASC
             """, (s_str, e_str))
-            data["core_events"] = [dict(row) for row in cursor.fetchall()]
+            
+            # 将 Core Events 按日期分组
+            raw_events = [dict(row) for row in cursor.fetchall()]
+            print(f"DEBUG: Fetched {len(raw_events)} core events")
+            # print(f"DEBUG: First event: {raw_events[0] if raw_events else 'None'}")
+            
+            events_by_date = {}
+            for ev in raw_events:
+                d = ev['date']
+                if d not in events_by_date:
+                    events_by_date[d] = []
+                events_by_date[d].append(ev)
+            
+            data["core_events_map"] = events_by_date
+            data["core_events"] = raw_events # Keep raw list for Top Apps calculation
             
             # 3. Window Sessions (用于寻找具体的巅峰时刻时间段)
             # 这里简化处理：只找这段时间内持续时间最长的一次会话
@@ -132,7 +149,12 @@ class ReportGenerator:
         peak_day_info = {}
         if daily_stats:
             peak_day = max(daily_stats, key=lambda x: x["total_focus_time"])
-            peak_date_obj = datetime.strptime(peak_day["date"], "%Y-%m-%d")
+            # 如果 date 是字符串，才转换；如果是 date 对象，直接使用
+            if isinstance(peak_day["date"], str):
+                peak_date_obj = datetime.strptime(peak_day["date"], "%Y-%m-%d")
+            else:
+                peak_date_obj = peak_day["date"]
+            
             weekday_map = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
             
             # 尝试关联具体的巅峰时刻 (从 window_sessions)
@@ -141,10 +163,18 @@ class ReportGenerator:
             if peak_session and peak_session["start_time"]:
                 # 确保 peak session 是在巅峰日发生的（这里简化，直接用最长会话）
                 # 格式化时间段
-                st = datetime.strptime(peak_session["start_time"], "%Y-%m-%d %H:%M:%S")
-                et = datetime.strptime(peak_session["end_time"], "%Y-%m-%d %H:%M:%S")
-                duration_min = int(peak_session["duration"] / 60)
-                peak_desc = f"特别是在 {st.strftime('%H:%M')} 至 {et.strftime('%H:%M')} 期间，你创造了令人印象深刻的“{duration_min}分钟心流”。"
+                try:
+                    if isinstance(peak_session["start_time"], str):
+                        st = datetime.strptime(peak_session["start_time"], "%Y-%m-%d %H:%M:%S")
+                        et = datetime.strptime(peak_session["end_time"], "%Y-%m-%d %H:%M:%S")
+                    else:
+                        st = peak_session["start_time"]
+                        et = peak_session["end_time"]
+                        
+                    duration_min = int(peak_session["duration"] / 60)
+                    peak_desc = f"特别是在 {st.strftime('%H:%M')} 至 {et.strftime('%H:%M')} 期间，你创造了令人印象深刻的“{duration_min}分钟心流”。"
+                except Exception as e:
+                    print(f"Error parsing peak session time: {e}")
             
             peak_day_info = {
                 "date_str": f"{peak_day['date']} ({weekday_map[peak_date_obj.weekday()]})",
@@ -157,23 +187,68 @@ class ReportGenerator:
         daily_logs_for_ai = [] # 给 AI 用的精简版
         
         # 创建日期映射以便合并 Core Events
-        core_map = {row["date"]: row for row in data["core_events"]}
+        # core_map = {row["date"]: row for row in data["core_events"]} # Old logic
+        core_events_map = data.get("core_events_map", {})
         
         for stat in daily_stats:
             d_str = stat["date"]
             # 格式化日期： 2026-01-21 -> 1月21日
-            dt = datetime.strptime(d_str, "%Y-%m-%d")
+            if isinstance(d_str, str):
+                dt = datetime.strptime(d_str, "%Y-%m-%d")
+            else:
+                dt = d_str
+                # 将 d_str 统一转为字符串以便查表
+                d_str = dt.strftime("%Y-%m-%d")
+                
             fmt_date = f"{dt.month}月{dt.day}日"
             
-            core_event = core_map.get(d_str, {})
+            # 选择当天的 Core Event
+            # 逻辑：默认取 Rank 1 的 Focus。但每 3 天（或随机概率 1/3），如果当天有显著的 Entertainment，则展示它。
+            # 这里简单起见，使用日期哈希来决定：日期天数 % 3 == 0 时，优先展示娱乐（如果有）
+            events = core_events_map.get(d_str, [])
+            selected_event = {}
+            
+            # 调试信息
+            if not events:
+                # 尝试再次从 core_events_map 查找，可能是日期格式问题
+                # 比如 core_events_map 里的 key 是 datetime.date 对象
+                for k, v in core_events_map.items():
+                    if str(k) == d_str:
+                        events = v
+                        break
+            
+            if events:
+                # 尝试找到 Focus 和 Entertainment
+                focus_ev = next((e for e in events if e['category'] == 'focus'), None)
+                ent_ev = next((e for e in events if e['category'] == 'entertainment'), None)
+                
+                # 决策逻辑：1/3 概率展示娱乐
+                show_ent = (dt.day % 3 == 0) and ent_ev
+                
+                if show_ent:
+                    selected_event = ent_ev
+                elif focus_ev:
+                    selected_event = focus_ev
+                elif ent_ev: # 如果没有 Focus，只能展示娱乐
+                    selected_event = ent_ev
+                else:
+                    selected_event = events[0]
+            else:
+                 # 如果真的找不到，尝试从 daily_summary (Period Stats) 补救
+                 # 但这里先不引入更多依赖，保持简单
+                 pass
+            
             # 默认核心事项（如果没有 AI 生成，先用原始标题）
-            raw_title = core_event.get("clean_title", "无核心记录")
-            app_name = core_event.get("app_name", "")
+            raw_title = selected_event.get("clean_title", "无核心记录")
+            app_name = selected_event.get("app_name", "")
+            
+            # [Fallback] 如果数据库里有标题，优先显示标题而不是 "无核心记录"
+            fallback_display = f"{app_name} - {raw_title}" if app_name else raw_title
             
             row_data = {
                 "date": d_str,
                 "fmt_date": fmt_date,
-                "raw_core_item": f"{app_name} - {raw_title}" if app_name else raw_title,
+                "raw_core_item": fallback_display, # 这里将作为 AI 没返回时的默认显示
                 "hours": round(stat["total_focus_time"] / 3600, 1),
                 "longest_min": int(stat["max_focus_streak"] / 60)
             }
@@ -183,7 +258,8 @@ class ReportGenerator:
                 "date": fmt_date,
                 "top_app": app_name,
                 "title": raw_title,
-                "hours": row_data["hours"]
+                "hours": row_data["hours"],
+                "category": selected_event.get('category', 'unknown') # 传给 AI，让它知道这是娱乐还是工作
             })
 
         # 提取主要阵地 (Top Apps)

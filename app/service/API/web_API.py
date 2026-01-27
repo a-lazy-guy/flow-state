@@ -256,44 +256,101 @@ def create_app(ai_busy_flag=None):
             
         try:
             from app.data.web_report.report_generator import ReportGenerator
-            from app.service.detector.detector_logic import analyze
             
+            # 使用标准的 app 包导入
+            from app.service.detector.extract_core_events import extract_core_events
+            from app.service.detector.calculate_period_stats import calculate_period_stats
+            from datetime import date
+            
+            # 1. 实时触发核心事件提取 + 周期统计更新 (今天)
+            try:
+                today_str = date.today().strftime('%Y-%m-%d')
+                print(f"【Web服务】正在实时提取今日({today_str})数据...")
+                extract_core_events(today_str)
+                
+                from scripts.calculate_period_stats import calculate_period_stats
+                calculate_period_stats(today_str)
+            except Exception as e:
+                print(f"【Web服务】实时提取失败 (不影响后续流程): {e}")
+
+            # 2. 准备数据和回调
+            # 这里我们使用 remove_chat.py 中验证过的逻辑，直接调用 LangFlow API
+            # 而不是使用本地的 detector_logic (因为 LangFlow 效果更好或用户指定)
+            import requests
+            import uuid
+            
+            # 配置 API (建议移至配置文件)
+            API_KEY_1 = 'sk-Gwhx0iMED0qlkQS6Oxsuxo5DW192U-w28AM1JDEJsDk'
+            URL_1 = "http://localhost:7860/api/v1/run/09733a7e-ecf8-4771-b3fd-d4a367d67f57"
+            
+            API_KEY_2 = 'sk-kidtu9j5hqYnpV5rGD81xvNPjQsq5QUmI53HY6JHp0M'
+            URL_2 = "http://localhost:7860/api/v1/run/7886edbe-e56a-46b5-ae24-9103becf35f1"
+
+            def call_langflow(url, key, text):
+                try:
+                    resp = requests.post(
+                        url, 
+                        json={"input_value": text, "input_type": "chat", "output_type": "chat", "session_id": str(uuid.uuid4())},
+                        headers={"x-api-key": key},
+                        timeout=30
+                    )
+                    resp.raise_for_status()
+                    return resp.json()["outputs"][0]["outputs"][0]["results"]["message"]["text"]
+                except Exception as e:
+                    print(f"LangFlow API Error: {e}")
+                    return None
+
             # 定义 AI 回调函数
             def ai_callback(context):
-                print("【Web服务】正在请求 AI 生成洞察...")
+                print("【Web服务】正在请求 AI (LangFlow) 生成洞察...")
                 
-                # 构造 Prompt
-                prompt = f"""
-                你是一个专业的高效能教练。请根据以下用户最近 {days} 天的专注数据，生成一份深度复盘报告的两个核心部分。
+                # A. 生成核心事项 (Core Items)
+                core_items = {}
+                for log in context['daily_logs']:
+                    date_str = log['date']
+                    prompt_event = f"""
+Role: 你是一个极其敏锐的数据分析师。
+Task: 请阅读以下用户在 {date_str} 的应用使用记录，总结出当天唯一的一个核心事项。
+Data Context:
+- Top App: {log['top_app']}
+- Window Title: {log['title']}
+- Duration: {log['hours']} 小时
+Constraints:
+- 输出必须少于 15 个字。
+- 格式：[动词] [核心名词]
+- 例如："重构后端代码"。
+- 不要包含任何解释性文字，只输出结果。
+"""
+                    # 只有当有有效数据时才调用
+                    if log['top_app']:
+                        res = call_langflow(URL_1, API_KEY_1, prompt_event)
+                        if res: core_items[date_str] = res
                 
-                【用户数据 Context】
-                - 周期: {context['period']}
-                - 专注总时长: {context['total_focus_hours']} 小时
-                - 意志力胜利次数: {context['willpower_wins']} 次
-                - 巅峰日信息: {context['peak_day']}
-                - 每日概览: {context['daily_logs']}
+                # B. 生成致奋斗者 (Encouragement)
+                peak_info = context['peak_day']
+                peak_str = f"{peak_info.get('date_str', '无')} ({peak_info.get('hours', 0)}h)"
                 
-                【任务要求】
-                请返回一个 JSON 对象（不要 Markdown 代码块，纯 JSON），包含以下两个字段：
-                1. "core_items": 一个字典，Key是日期（格式如 "1月21日"），Value是当天核心事项的一句话精炼总结（基于 top_app 和 title）。
-                   例如: {{ "1月21日": "重构后端核心逻辑", "1月22日": "深入研究数据库架构" }}
-                2. "encouragement": 一段 100 字左右的致追梦者寄语。风格激昂、真诚，引用上面的具体数据（如“你夺回了XX分钟”），对用户的努力给予高度肯定。
-                
-                请确保输出是合法的 JSON 格式。
-                """
-                
-                # 调用 AI (使用 json_mode=True)
-                try:
-                    response_text = analyze("生成复盘报告", system_prompt=prompt, json_mode=True)
-                    import json
-                    return json.loads(response_text)
-                except Exception as e:
-                    print(f"AI 生成失败: {e}")
-                    # Fallback
-                    return {
-                        "core_items": {}, 
-                        "encouragement": f"数据表明，你在过去 {days} 天里投入了 {context['total_focus_hours']} 小时的专注时间。虽然 AI 暂时无法连接，但你的努力已被记录。继续加油！"
-                    }
+                prompt_enc = f"""
+Role: 你是一个充满激情与同理心的高效能教练。
+Task: 根据用户的专注数据，写一段“致奋斗者”的寄语。
+Data Context:
+- 专注总时长: {context['total_focus_hours']} 小时
+- 意志力胜利: {context['willpower_wins']} 次 (意味着他战胜了诱惑)
+- 巅峰时刻: {peak_str}
+Style:
+- 激昂、真诚、数据驱动。
+- 必须引用上面的具体数字。
+- 结尾要给人以力量。
+- 字数控制在 100 字左右。
+"""
+                encouragement = call_langflow(URL_2, API_KEY_2, prompt_enc)
+                if not encouragement:
+                    encouragement = "AI 暂时繁忙，但数据见证了你的努力。继续加油！"
+
+                return {
+                    "core_items": core_items,
+                    "encouragement": encouragement
+                }
 
             # 生成报告
             generator = ReportGenerator()

@@ -104,22 +104,41 @@ def extract_core_events(target_date):
         for cat, statuses in categories.items():
             status_placeholder = ','.join(['?'] * len(statuses))
             # --- Step 1: 硬过滤 ---
-            # 查 status IN (...) 且 duration > 120
+            # 查 status IN (...) 且 duration > 30 (放宽到 30s)
             query = f'''
                 SELECT process_name, window_title, duration 
                 FROM window_sessions
                 WHERE start_time BETWEEN ? AND ?
                 AND status IN ({status_placeholder})
-                AND duration > 120
+                AND duration > 30
             '''
             params = [start_ts, end_ts] + statuses
             cursor.execute(query, params)
             
             rows = cursor.fetchall()
             
-            if not rows:
-                print(f"  No {cat} sessions found for {target_date}")
-                continue
+            if not rows and cat == 'focus':
+                # [兜底逻辑] 如果 Focus 没找到，尝试找 Unknown 或其他状态中最长的
+                print(f"  [Fallback] No explicit focus found, searching for ANY significant activity...")
+                fallback_query = '''
+                    SELECT process_name, window_title, duration 
+                    FROM window_sessions
+                    WHERE start_time BETWEEN ? AND ?
+                    AND duration > 60
+                    ORDER BY duration DESC
+                    LIMIT 5
+                '''
+                cursor.execute(fallback_query, [start_ts, end_ts])
+                rows = cursor.fetchall()
+                # 标记为 'misc' 以便区分，但存入数据库时仍可暂用 focus 或新建 misc 类别
+                # 这里为了兼容性，仍存为 focus，但在标题上做标记
+                # 仅当完全没有行时才跳过
+                if not rows:
+                    print(f"  No significant activity found at all for {target_date}")
+                    continue
+            elif not rows:
+                 print(f"  No {cat} sessions found for {target_date}")
+                 continue
 
             # --- Step 2: 聚合 ---
             events_map = {}

@@ -206,94 +206,148 @@
             flex-direction: column;
             padding: 30px;
             background-color: var(--color-bg-light);
+            /* New: Centering Content */
+            justify-content: center; 
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
         }
         .ai-search-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
         .ai-search-title {
-            font-size: 24px;
+            font-size: 32px; /* Larger Title */
             font-weight: bold;
             color: var(--color-green-dark);
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
         }
         .ai-search-subtitle {
-            font-size: 14px;
-            color: var(--color-green-mid);
+            font-size: 16px;
+            color: var(--color-text-sub);
+            opacity: 0.8;
         }
         .ai-input-box {
             background-color: var(--color-white);
-            border-radius: 16px;
-            box-shadow: 0 4px 15px rgba(79, 102, 16, 0.1);
-            padding: 15px 20px;
+            border-radius: 24px; /* More rounded */
+            box-shadow: 0 10px 30px rgba(79, 102, 16, 0.08); /* Softer shadow */
+            padding: 18px 24px;
             display: flex;
             align-items: center;
             border: 2px solid transparent;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
         .ai-input-box:focus-within {
             border-color: var(--color-green-light);
-            box-shadow: 0 8px 25px rgba(79, 102, 16, 0.15);
+            box-shadow: 0 15px 40px rgba(79, 102, 16, 0.15);
             transform: translateY(-2px);
         }
         .ai-input {
             flex: 1;
             border: none;
             outline: none;
-            font-size: 16px;
+            font-size: 18px; /* Larger Text */
             color: var(--color-green-dark);
-            margin-left: 10px;
+            margin-left: 15px;
+            background: transparent;
         }
         .ai-input::placeholder {
-            color: rgba(120, 144, 53, 0.5);
+            color: rgba(120, 144, 53, 0.4);
         }
-        .filter-tags {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-            margin-bottom: 30px;
+        
+        /* New: Search Suggestions as Cards */
+        .suggestion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 40px;
+            width: 100%;
         }
-        .filter-tag {
-            padding: 6px 16px;
-            background-color: rgba(255, 255, 255, 0.6);
-            border-radius: 20px;
-            font-size: 13px;
-            color: var(--color-green-mid);
+        .suggestion-card {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(164, 191, 90, 0.2);
+            border-radius: 12px;
+            padding: 15px;
             cursor: pointer;
             transition: all 0.2s;
-            border: 1px solid transparent;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
-        .filter-tag:hover, .filter-tag.active {
-            background-color: var(--color-green-dark);
-            color: white;
+        .suggestion-card:hover {
+            background: var(--color-white);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-color: var(--color-green-light);
         }
+        .suggestion-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .suggestion-text {
+            font-size: 14px;
+            color: var(--color-green-mid);
+            font-weight: 500;
+        }
+
+        .filter-tags {
+            display: none; /* Hide old tags for cleaner look */
+        }
+        
         .search-results-area {
             flex: 1;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 20px;
+            width: 100%;
+            margin-top: 30px;
+            /* Hide scrollbar but keep functionality */
+            scrollbar-width: none; 
         }
+        .search-results-area::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* --- AI Result Card Styling --- */
         .ai-summary-card {
-            background: linear-gradient(135deg, #f0f7e6, #fff);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid var(--color-green-light);
-            display: none; /* Hidden by default */
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 24px;
+            border: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            display: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-summary-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, #a4bf5a, #4f6610);
         }
         .ai-summary-title {
+            font-size: 16px;
             font-weight: bold;
             color: var(--color-green-dark);
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .ai-summary-content {
-            font-size: 14px;
-            line-height: 1.6;
-            color: var(--color-text-main);
+            font-size: 15px;
+            line-height: 1.7;
+            color: #333;
         }
         .result-group-title {
             font-size: 14px;
@@ -832,6 +886,7 @@
                     </div>
 
                     <div class='filter-tags'>
+                        <!-- Hidden but preserved logic -->
                         <div class='filter-tag active' data-i18n="search.filter.all">全部</div>
                         <div class='filter-tag' data-i18n="search.filter.doc">文档</div>
                         <div class='filter-tag' data-i18n="search.filter.web">网页</div>
@@ -839,10 +894,24 @@
                     </div>
 
                     <div class='search-results-area' id='ai-results-area'>
-                        <!-- Empty State -->
-                        <div style='text-align: center; color: #789035; margin-top: 40px; opacity: 0.7;'>
-                            输入关键词开始搜索<br>
-                            例如："上周的项目文档" 或 "Chrome 浏览历史"
+                        <!-- New: Suggestion Grid (Empty State) -->
+                        <div class="suggestion-grid">
+                            <div class="suggestion-card" onclick="setSearch('我的工作效率')">
+                                <div class="suggestion-icon">⚡️</div>
+                                <div class="suggestion-text">分析我的工作效率</div>
+                            </div>
+                            <div class="suggestion-card" onclick="setSearch('上周的项目进度')">
+                                <div class="suggestion-icon">📊</div>
+                                <div class="suggestion-text">上周项目进度如何？</div>
+                            </div>
+                            <div class="suggestion-card" onclick="setSearch('Chrome 浏览历史')">
+                                <div class="suggestion-icon">🌐</div>
+                                <div class="suggestion-text">搜索网页浏览记录</div>
+                            </div>
+                            <div class="suggestion-card" onclick="setSearch('最近打开的文档')">
+                                <div class="suggestion-icon">📄</div>
+                                <div class="suggestion-text">找回最近的文档</div>
+                            </div>
                         </div>
                     </div>
                 </div>
