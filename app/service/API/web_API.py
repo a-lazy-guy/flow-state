@@ -41,18 +41,96 @@ def create_app(ai_busy_flag=None):
     def health_check():
         return jsonify({'status': 'ok', 'message': 'Flow State Web Server is running'})
     
-    # 示例：获取历史数据接口
-    @app.route('/api/history')
-    def get_history():
-        # TODO: 实际应从 app.data.dao 读取 SQLite
-        # from app.data.dao.activity_dao import ActivityDAO
-        return jsonify({"date": "2026-01-13", "focus_time": 120})
+    # 分页获取历史会话数据接口 (Window Sessions)
+    @app.route('/api/history/scroll')
+    def get_history_scroll():
+        try:
+            from app.data.dao.activity_dao import WindowSessionDAO
+            
+            # 获取分页参数
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 20, type=int)
+            
+            # 计算偏移量
+            offset = (page - 1) * per_page
+            
+            # 临时直接调用底层逻辑 (为了快速实现)
+            import sqlite3
+            from app.data.core.database import get_db_path
+            
+            db_path = get_db_path()
+            print(f"[WebAPI] Connecting to DB at: {db_path}") # Debug log
+            
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # 使用 window_sessions 表，按开始时间倒序排列
+            query = """
+                SELECT * FROM window_sessions 
+                ORDER BY start_time DESC 
+                LIMIT ? OFFSET ?
+            """
+            cursor.execute(query, (per_page, offset))
+            rows = cursor.fetchall()
+            
+            records = []
+            for s in rows:
+                s = dict(s)
+                
+                # 优先使用 summary (AI 摘要)，如果没有则使用窗口标题
+                title = s.get('summary')
+                if not title or title == s.get('window_title'):
+                    title = s.get('window_title', 'Unknown')
+                    
+                content_str = f"Status: {s.get('status')} | Duration: {s.get('duration')}s"
+                if s.get('process_name'):
+                    content_str += f" | App: {s.get('process_name')}"
+
+                records.append({
+                    'id': s.get('id'),
+                    'timestamp': s.get('start_time'),
+                    'app_name': s.get('process_name', 'Unknown'),
+                    'window_title': title, 
+                    'content': content_str,
+                    'duration': s.get('duration'),
+                    'status': s.get('status')
+                })
+            
+            conn.close()
+            
+            return jsonify({
+                "data": records,
+                "page": page,
+                "has_more": len(records) == per_page
+            })
+            
+        except Exception as e:
+            print(f"Error fetching scroll history: {e}")
+            return jsonify({"error": str(e), "data": []}), 500
+
+    @app.route('/api/history/check_update')
+    def check_update():
+        """检查是否有新数据"""
+        try:
+            from app.data.dao.activity_dao import WindowSessionDAO
+            last_session = WindowSessionDAO.get_last_session()
+            
+            if last_session:
+                return jsonify({
+                    "latest_id": last_session.get('id'),
+                    "latest_timestamp": last_session.get('start_time')
+                })
+            return jsonify({"latest_id": 0, "latest_timestamp": ""})
+        except Exception as e:
+            print(f"Error checking update: {e}")
+            return jsonify({"error": str(e)}), 500
 
     @app.route('/api/history/recent')
     def get_recent_history():
         try:
             # 延迟导入以避免循环依赖或上下文问题
-            from app.data.dao.activity_dao import OcrDAO, WindowSessionDAO
+            from app.data.dao.activity_dao import WindowSessionDAO
             import json
             
             records = []
@@ -91,24 +169,24 @@ def create_app(ai_busy_flag=None):
                     })
             
             # 2. 如果 Window Sessions 没数据 (比如刚启动)，尝试获取 OCR 记录
-            if not records:
-                ocr_records = OcrDAO.get_recent_records(limit=50)
-                if ocr_records:
-                    # OCR records might need similar timestamp handling if they are datetime objects
-                    for ocr in ocr_records:
-                        ts = ocr.get('timestamp')
-                        if hasattr(ts, 'strftime'):
-                            ts_str = ts.strftime('%Y-%m-%d %H:%M:%S')
-                        else:
-                            ts_str = str(ts) if ts else ''
-                            
-                        records.append({
-                            'id': ocr.get('id'),
-                            'timestamp': ts_str,
-                            'app_name': ocr.get('app_name'),
-                            'window_title': ocr.get('window_title'),
-                            'content': ocr.get('content')
-                        })
+            # if not records:
+            #     ocr_records = OcrDAO.get_recent_records(limit=50)
+            #     if ocr_records:
+            #         # OCR records might need similar timestamp handling if they are datetime objects
+            #         for ocr in ocr_records:
+            #             ts = ocr.get('timestamp')
+            #             if hasattr(ts, 'strftime'):
+            #                 ts_str = ts.strftime('%Y-%m-%d %H:%M:%S')
+            #             else:
+            #                 ts_str = str(ts) if ts else ''
+            #                 
+            #             records.append({
+            #                 'id': ocr.get('id'),
+            #                 'timestamp': ts_str,
+            #                 'app_name': ocr.get('app_name'),
+            #                 'window_title': ocr.get('window_title'),
+            #                 'content': ocr.get('content')
+            #             })
 
             # 3. 如果都没有数据，生成一些模拟数据供演示
             if not records:
@@ -141,24 +219,158 @@ def create_app(ai_busy_flag=None):
                 
             # 计算总有效时长 (focus + work)
             focus = summary.get('total_focus_time', 0) or 0
-            work = summary.get('total_work_time', 0) or 0
+            # work = summary.get('total_work_time', 0) or 0 # Removed in new schema
             ent = summary.get('total_entertainment_time', 0) or 0
             
-            total_prod = focus + work
+            # total_prod = focus + work
+            
+            # New fields
+            max_streak = summary.get('max_focus_streak', 0) or 0
+            current_streak = summary.get('current_focus_streak', 0) or 0
+            efficiency = summary.get('efficiency_score', 0) or 0
             
             return jsonify({
                 "total_focus": focus,
-                "total_work": work,
+                # "total_work": work, # Deprecated
                 "total_entertainment": ent,
-                "total_productive_seconds": total_prod
+                "total_productive_seconds": focus, # Just focus now
+                "max_focus_streak": max_streak,
+                "current_focus_streak": current_streak,
+                "efficiency_score": efficiency
             })
         except Exception as e:
             print(f"Error fetching stats: {e}")
             return jsonify({"error": str(e)}), 500
 
-    # 示例：AI 生成日报接口
-    @app.route('/api/generate_report', methods=['POST'])
-    def generate_report():
+    # 新增：生成深度复盘报告接口 (Report Generation)
+    @app.route('/api/report/generate', methods=['POST'])
+    def generate_report_api():
+        data = request.json
+        days = data.get('days', 3)
+        print(f"【Web服务】收到生成报告请求，周期: {days}天")
+        
+        # 错峰执行：设置忙碌标志
+        flag = app.config.get('AI_BUSY_FLAG')
+        if flag:
+            flag.value = True
+            
+        try:
+            from app.data.web_report.report_generator import ReportGenerator
+            
+            # 使用标准的 app 包导入
+            from app.service.detector.extract_core_events import extract_core_events
+            from app.service.detector.calculate_period_stats import calculate_period_stats
+            from datetime import date
+            
+            # 1. 实时触发核心事件提取 + 周期统计更新 (今天)
+            try:
+                today_str = date.today().strftime('%Y-%m-%d')
+                print(f"【Web服务】正在实时提取今日({today_str})数据...")
+                extract_core_events(today_str)
+                
+                from scripts.calculate_period_stats import calculate_period_stats
+                calculate_period_stats(today_str)
+            except Exception as e:
+                print(f"【Web服务】实时提取失败 (不影响后续流程): {e}")
+
+            # 2. 准备数据和回调
+            # 这里我们使用 remove_chat.py 中验证过的逻辑，直接调用 LangFlow API
+            # 而不是使用本地的 detector_logic (因为 LangFlow 效果更好或用户指定)
+            import requests
+            import uuid
+            
+            # 配置 API (建议移至配置文件)
+            API_KEY_1 = 'sk-Gwhx0iMED0qlkQS6Oxsuxo5DW192U-w28AM1JDEJsDk'
+            URL_1 = "http://localhost:7860/api/v1/run/09733a7e-ecf8-4771-b3fd-d4a367d67f57"
+            
+            API_KEY_2 = 'sk-kidtu9j5hqYnpV5rGD81xvNPjQsq5QUmI53HY6JHp0M'
+            URL_2 = "http://localhost:7860/api/v1/run/7886edbe-e56a-46b5-ae24-9103becf35f1"
+
+            def call_langflow(url, key, text):
+                try:
+                    resp = requests.post(
+                        url, 
+                        json={"input_value": text, "input_type": "chat", "output_type": "chat", "session_id": str(uuid.uuid4())},
+                        headers={"x-api-key": key},
+                        timeout=30
+                    )
+                    resp.raise_for_status()
+                    return resp.json()["outputs"][0]["outputs"][0]["results"]["message"]["text"]
+                except Exception as e:
+                    print(f"LangFlow API Error: {e}")
+                    return None
+
+            # 定义 AI 回调函数
+            def ai_callback(context):
+                print("【Web服务】正在请求 AI (LangFlow) 生成洞察...")
+                
+                # A. 生成核心事项 (Core Items)
+                core_items = {}
+                for log in context['daily_logs']:
+                    date_str = log['date']
+                    prompt_event = f"""
+Role: 你是一个极其敏锐的数据分析师。
+Task: 请阅读以下用户在 {date_str} 的应用使用记录，总结出当天唯一的一个核心事项。
+Data Context:
+- Top App: {log['top_app']}
+- Window Title: {log['title']}
+- Duration: {log['hours']} 小时
+Constraints:
+- 输出必须少于 15 个字。
+- 格式：[动词] [核心名词]
+- 例如："重构后端代码"。
+- 不要包含任何解释性文字，只输出结果。
+"""
+                    # 只有当有有效数据时才调用
+                    if log['top_app']:
+                        res = call_langflow(URL_1, API_KEY_1, prompt_event)
+                        if res: core_items[date_str] = res
+                
+                # B. 生成致奋斗者 (Encouragement)
+                peak_info = context['peak_day']
+                peak_str = f"{peak_info.get('date_str', '无')} ({peak_info.get('hours', 0)}h)"
+                
+                prompt_enc = f"""
+Role: 你是一个充满激情与同理心的高效能教练。
+Task: 根据用户的专注数据，写一段“致奋斗者”的寄语。
+Data Context:
+- 专注总时长: {context['total_focus_hours']} 小时
+- 意志力胜利: {context['willpower_wins']} 次 (意味着他战胜了诱惑)
+- 巅峰时刻: {peak_str}
+Style:
+- 激昂、真诚、数据驱动。
+- 必须引用上面的具体数字。
+- 结尾要给人以力量。
+- 字数控制在 100 字左右。
+"""
+                encouragement = call_langflow(URL_2, API_KEY_2, prompt_enc)
+                if not encouragement:
+                    encouragement = "AI 暂时繁忙，但数据见证了你的努力。继续加油！"
+
+                return {
+                    "core_items": core_items,
+                    "encouragement": encouragement
+                }
+
+            # 生成报告
+            generator = ReportGenerator()
+            report_md = generator.generate_report(days=days, ai_callback=ai_callback)
+            
+            return jsonify({"report": report_md})
+            
+        except Exception as e:
+            print(f"【Web服务】生成报告失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            # 恢复后台 AI
+            if flag:
+                flag.value = False
+
+    # 示例：AI 生成日报接口 (Old, kept for compatibility if needed)
+    @app.route('/api/generate_report_old', methods=['POST'])
+    def generate_report_old():
         print("【Web服务】收到生成日报请求...")
         
         # 错峰执行：暂停后台 AI

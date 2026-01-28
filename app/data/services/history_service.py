@@ -7,8 +7,17 @@
 """
 
 import time
+import sys
+import os
+
+# 添加项目根目录到 sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, "../../.."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from datetime import date
-from app.data.dao.activity_dao import ActivityDAO, StatsDAO, OcrDAO, WindowSessionDAO
+from app.data.dao.activity_dao import ActivityDAO, StatsDAO, WindowSessionDAO
 import json
 
 class ActivityHistoryManager:
@@ -32,6 +41,12 @@ class ActivityHistoryManager:
         self.status_start_time = None
         self._last_summary = None
         self._last_raw_data = None
+        
+        # 记录当前连续专注时长 (秒)
+        self._current_focus_streak_seconds = 0
+        
+        # 意志力胜利检测状态: 记录进入当前状态前，是否处于 Focus 状态
+        self._last_status_was_focus = False
         
         # 新增：记录上一个窗口会话的信息，用于合并
         self._last_window_session = {
@@ -58,9 +73,21 @@ class ActivityHistoryManager:
             duration_seconds = int(current_time - self.status_start_time)
             # 过滤短时抖动
             if duration_seconds > 2:
-                self._save_record(self.current_status, duration_seconds, self._last_summary, self._last_raw_data)
+                # 检测意志力胜利 (从 Entertainment 切回 Focus)
+                willpower_win_increment = 0
+                if self.current_status == 'entertainment' and status in ['focus', 'work']:
+                    if self._last_status_was_focus and 5 < duration_seconds < 300:
+                        willpower_win_increment = 1
+                
+                self._save_record(self.current_status, duration_seconds, self._last_summary, self._last_raw_data, willpower_wins_increment=willpower_win_increment)
                 self._update_cache(self.current_status, int(duration_seconds / 60), self.status_start_time)
             
+            # 更新状态追踪 (为下一段做准备)
+            if self.current_status in ['focus', 'work']:
+                self._last_status_was_focus = True
+            else:
+                self._last_status_was_focus = False
+                
             self.current_status = status
             self.status_start_time = current_time
             # 重置缓存的摘要
@@ -97,7 +124,7 @@ class ActivityHistoryManager:
                 if raw_data:
                     self._last_raw_data = raw_data
     
-    def _save_record(self, status: str, duration: int, summary: str = None, raw_data: str = None):
+    def _save_record(self, status: str, duration: int, summary: str = None, raw_data: str = None, willpower_wins_increment: int = 0):
         """调用 DAO 保存数据"""
         try:
             # 1. 写入流水日志
@@ -106,18 +133,25 @@ class ActivityHistoryManager:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ActivityDAO.insert_log(status, duration, timestamp=timestamp, summary=summary, raw_data=raw_data)
             
-            # 2. 更新每日统计
-            today = date.today()
+            # 2. 计算连续专注时长
+            if status in ['focus', 'work']:
+                self._current_focus_streak_seconds += duration
+            else:
+                # 状态中断，重置 (可以加一个宽容度逻辑，比如 <2分钟的娱乐不打断，但这里先严格处理)
+                self._current_focus_streak_seconds = 0
             
+            # 3. 更新每日统计 (传入当前连续时长)
+            today = date.today()
             # 修改：如果是充电模式，所有活动都计入充能时间
+            stats_status = status
             if self.get_current_mode() == "recharge":
                 # 充电模式下，不管实际状态是什么，都统计为娱乐时间（充能）
-                StatsDAO.update_daily_stats(today, "entertainment", duration)
-            else:
-                # 专注模式下，按实际状态统计
-                StatsDAO.update_daily_stats(today, status, duration)
+                stats_status = "entertainment"
+
+            # 4. 更新每日统计 (传入当前连续时长)
+            StatsDAO.update_daily_stats(today, stats_status, duration, self._current_focus_streak_seconds, willpower_wins_increment)
             
-            # 3. 更新或创建窗口会话聚合记录 (Window Sessions)
+            # 4. 更新或创建窗口会话聚合记录 (Window Sessions)
             if raw_data:
                 try:
                     rd = json.loads(raw_data)
@@ -197,10 +231,11 @@ class ActivityHistoryManager:
 
     def add_ocr_record(self, content: str, app_name: str, screenshot_path: str = None):
         """添加 OCR 记录"""
-        try:
-            OcrDAO.insert_record(content, app_name, screenshot_path)
-        except Exception as e:
-            print(f"[HistoryManager] OCR DB Error: {e}")
+        pass
+        # try:
+        #     OcrDAO.insert_record(content, app_name, screenshot_path)
+        # except Exception as e:
+        #     print(f"[HistoryManager] OCR DB Error: {e}")
 
     def get_current_duration(self) -> int:
         if self.status_start_time is None:
