@@ -6,9 +6,9 @@ class LangflowClient:
     def __init__(self, timeout: int = 30):
         self.summary_url = os.getenv('LANGFLOW_SUMMARY_URL', 'http://localhost:7860/api/v1/run/9608210a-cdbb-4c53-879f-8b37984d6d9b')
         self.summary_key = os.getenv('LANGFLOW_SUMMARY_KEY', 'sk-ivJj5oRPiiUD51xPwM6qPERLLedQM6qzW9YZcDUKUm8')
-        self.enc_url = os.getenv('LANGFLOW_ENC_URL', 'http://localhost:7860/api/v1/run/0f4c3950-5af1-40c0-898d-994daf798863')
+        self.enc_url = os.getenv('LANGFLOW_ENC_URL', 'http://localhost:7860/api/v1/run/9608210a-cdbb-4c53-879f-8b37984d6d9b')
         self.enc_key = os.getenv('LANGFLOW_ENC_KEY', 'sk-ivJj5oRPiiUD51xPwM6qPERLLedQM6qzW9YZcDUKUm8')
-        self.detect_url = os.getenv('LANGFLOW_DETECT_URL', 'http://localhost:7860/api/v1/run/1255147a-9699-4558-b764-93a9ac1a2297')
+        self.detect_url = os.getenv('LANGFLOW_DETECT_URL', 'http://localhost:7860/api/v1/run/9608210a-cdbb-4c53-879f-8b37984d6d9b')
         self.detect_key = os.getenv('LANGFLOW_DETECT_KEY', 'sk-ivJj5oRPiiUD51xPwM6qPERLLedQM6qzW9YZcDUKUm8')
         self.timeout = timeout
 
