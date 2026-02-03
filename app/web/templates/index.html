@@ -991,6 +991,7 @@
                     </div>
 
                     <div class='search-results-area' id='ai-results-area'>
+ 
                         <!-- New: Suggestion Grid (Empty State) -->
                         <div class="suggestion-grid">
                             <div class="suggestion-card" onclick="setSearch('我的工作效率')">
@@ -1081,6 +1082,13 @@
             <!-- General -->
             <div class='settings-section-title' data-i18n="settings.general">常规</div>
             <div class='setting-item'>
+                <div class='setting-label' data-i18n="settings.autostart">开机自动启动</div>
+                <label class='switch'>
+                    <input type='checkbox' id="autostart-toggle" onchange="toggleAutostart(this.checked)">
+                    <span class='slider'></span>
+                </label>
+            </div>
+            <div class='setting-item'>
                 <div class='setting-label' data-i18n="settings.language">语言</div>
                 <select class="settings-select" id="language-select" onchange="changeLanguage(this.value)">
                     <option value="zh">中文</option>
@@ -1137,6 +1145,7 @@
             zh: {
                 "settings.title": "设置",
                 "settings.general": "常规",
+                "settings.autostart": "开机自动启动",
                 "settings.language": "语言",
                 "settings.appearance": "外观",
                 "settings.theme": "主题色",
@@ -1162,7 +1171,6 @@
                 "chat.title": "Flow-State Chat",
                 "chat.placeholder": "询问 Flow-State 助手...",
                 "chat.welcome": "你好！我是你的 Flow-State 助手。这里可以查看你的历史行为数据，也可以和我聊天。",
-                // Dynamic
                 "msg.loading": "正在加载数据...",
                 "msg.no_records": "暂无记录",
                 "msg.failed": "加载失败",
@@ -1176,6 +1184,7 @@
             en: {
                 "settings.title": "Settings",
                 "settings.general": "General",
+                "settings.autostart": "Auto Start at Boot",
                 "settings.language": "Language",
                 "settings.appearance": "Appearance",
                 "settings.theme": "Theme Color",
@@ -1336,6 +1345,41 @@
             const toggle = document.getElementById('compact-toggle');
             if(toggle) toggle.checked = isCompact;
             toggleCompactMode(isCompact);
+
+            loadAutostartSetting();
+        }
+
+        async function loadAutostartSetting() {
+            try {
+                const response = await fetch('/api/settings/autostart');
+                const data = await response.json();
+                const toggle = document.getElementById('autostart-toggle');
+                if(toggle) toggle.checked = data.enabled;
+            } catch (e) {
+                console.error("Failed to load autostart setting", e);
+            }
+        }
+
+        async function toggleAutostart(enabled) {
+            try {
+                const response = await fetch('/api/settings/autostart', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled: enabled})
+                });
+                const data = await response.json();
+                if(data.error) {
+                    alert('设置失败: ' + data.error);
+                    // Revert UI
+                    const toggle = document.getElementById('autostart-toggle');
+                    if(toggle) toggle.checked = !enabled;
+                }
+            } catch (e) {
+                console.error("Failed to set autostart", e);
+                alert('设置失败，网络错误');
+                const toggle = document.getElementById('autostart-toggle');
+                if(toggle) toggle.checked = !enabled;
+            }
         }
 
         // --- Drag Logic ---
@@ -2039,26 +2083,8 @@
                 addMessage('ai', '网络请求错误: ' + e.message);
             }
         }
-
-        // Handle Enter key in number input
         document.getElementById('days-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') triggerReportGeneration();
-        });
-
-        // Deprecated old handleSend but kept if needed for other logic
-        async function handleSend() {
-             // ... old logic ...
-        }
-        
-        // Remove old event listeners that might conflict
-        // sendBtn.removeEventListener('click', handleSend); 
-        // We replaced onclick in HTML directly for simplicity
-        
-        // --- End New Logic ---
-
-        sendBtn.addEventListener('click', handleSend);
-        chatInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') handleSend();
         });
 
         // Run Init
