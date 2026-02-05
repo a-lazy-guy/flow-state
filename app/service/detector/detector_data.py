@@ -241,7 +241,7 @@ class KeyboardDetector:
 class FocusDetector:
     """焦点窗口检测器"""
     
-    def __init__(self, check_interval: float = 0.5):
+    def __init__(self, check_interval: float = 60.0):
         """
         初始化焦点检测器
         
@@ -267,7 +267,13 @@ class FocusDetector:
             # 获取前台窗口句柄
             hwnd = win32gui.GetForegroundWindow()
             if not hwnd:
-                return None
+                # 锁屏或无焦点时，返回特定标记
+                return {
+                    "window_title": "Lock Screen",
+                    "process_name": "LockApp.exe",
+                    "process_id": 0,
+                    "hwnd": 0
+                }
             
             # 获取窗口标题
             window_title = win32gui.GetWindowText(hwnd)
@@ -510,7 +516,7 @@ def main():
     # 初始化检测器
     # mouse_detector = MouseDetector()
     # keyboard_detector = KeyboardDetector()
-    focus_detector = FocusDetector(check_interval=0.5)
+    focus_detector = FocusDetector(check_interval=50.0)
     
     # 启动检测器
     # print("启动鼠标检测...")

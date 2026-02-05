@@ -253,7 +253,7 @@ class FatigueReminderDialog(QDialog):
             }
         """)
         # 切换到建议列表页面
-        rest_btn.clicked.connect(lambda: self.stacked_layout.setCurrentIndex(1))
+        rest_btn.clicked.connect(self._on_rest_clicked)
         
         continue_btn = QPushButton("这题马上做完 💪")
         continue_btn.setFixedHeight(45)
@@ -545,17 +545,24 @@ class FatigueReminderDialog(QDialog):
         secs = self.remaining_time % 60
         self.timer_display_label.setText(f"{mins:02d}:{secs:02d}")
 
-    def accept(self):
-        """重写 accept 方法，在休息完成后发送重置信号"""
-        # 创建一个信号文件，通知后端重置专注计时器
+    def _send_reset_signal(self):
+        """发送重置信号给后端"""
         try:
             with open("reset_focus.signal", "w") as f:
                 f.write("reset")
             print("[FatigueDialog] Sent reset signal to backend.")
         except Exception as e:
             print(f"[FatigueDialog] Failed to send reset signal: {e}")
-            
+
+    def accept(self):
+        """重写 accept 方法，在休息完成后发送重置信号"""
+        self._send_reset_signal()
         super().accept()
+
+    def _on_rest_clicked(self):
+        """点击休息按钮：发送重置信号并切换页面"""
+        self._send_reset_signal()
+        self.stacked_layout.setCurrentIndex(1)
 
     def _on_rest_finished(self):
         """休息完成"""

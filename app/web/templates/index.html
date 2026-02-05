@@ -1667,6 +1667,11 @@
                 }
                 
                 if (newData.length > 0) {
+                    // Update latest ID if this is the first page
+                    if (currentPage === 1 && newData[0].id) {
+                         lastKnownLatestId = newData[0].id;
+                    }
+
                     allHistoryData = allHistoryData.concat(newData);
                     appendHistoryItems(newData, 'history-list');
                     currentPage++;
@@ -1921,19 +1926,20 @@
             // Initial check to set ID
             checkAndRefresh();
 
-            // Poll every 30 seconds
+            // Poll every 50 seconds
             autoRefreshInterval = setInterval(() => {
                 // Always refresh stats
                 loadTodayStats();
                 // Check for updates
                 checkAndRefresh();
-            }, 30000);
+            }, 50000);
         }
 
         async function checkAndRefresh() {
             try {
                 // Check server for latest record
-                const response = await fetch('/api/history/check_update');
+                // Add timestamp to prevent caching
+                const response = await fetch('/api/history/check_update?t=' + new Date().getTime());
                 const data = await response.json();
                 
                 if (data.error) return;
@@ -1943,15 +1949,17 @@
                 // If we don't have a known ID yet, set it (first run)
                 // Or if server has newer ID, refresh
                 if (lastKnownLatestId === null || (serverLatestId && serverLatestId > lastKnownLatestId)) {
+                    console.log("New data detected: Server=" + serverLatestId + ", Local=" + lastKnownLatestId);
+                    
                     // Update known ID
                     lastKnownLatestId = serverLatestId;
                     
-                    // Trigger refresh if we are on history tab
-                    const activeTab = document.querySelector('.nav-btn.active');
-                    if (activeTab && (activeTab.id === 'btn-7days' || activeTab.id === 'btn-30days')) {
-                        const days = activeTab.id === 'btn-7days' ? 7 : 30;
-                        console.log("New data detected, refreshing history list...");
-                        loadHistory(days);
+                    // Check if history panel is active
+                    const historyPanel = document.getElementById('panel-history');
+                    if (historyPanel && historyPanel.classList.contains('active')) {
+                        console.log("Refreshing history list...");
+                        // Reload list to show new item
+                        loadHistory(lastHistoryDays);
                     }
                 }
             } catch (e) {

@@ -16,7 +16,7 @@ project_root = os.path.abspath(os.path.join(current_dir, "../../.."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from datetime import date
+from datetime import date, datetime
 from app.data.dao.activity_dao import ActivityDAO, StatsDAO, WindowSessionDAO
 import json
 
@@ -125,31 +125,77 @@ class ActivityHistoryManager:
                     self._last_raw_data = raw_data
     
     def _save_record(self, status: str, duration: int, summary: str = None, raw_data: str = None, willpower_wins_increment: int = 0):
-        """调用 DAO 保存数据"""
+        """调用 DAO 保存数据 (自动处理跨日分割)"""
+        current_ts = time.time()
+        start_ts = current_ts - duration
+        
+        start_dt = datetime.fromtimestamp(start_ts)
+        end_dt = datetime.fromtimestamp(current_ts)
+        
+        # 检查是否跨越午夜
+        if start_dt.date() != end_dt.date():
+            # 跨日：分割为两段
+            print(f"[HistoryManager] Midnight crossing detected: {start_dt} -> {end_dt}")
+            
+            # 1. 计算第一段（昨天）的时长
+            # 午夜时间戳
+            midnight = datetime.combine(end_dt.date(), datetime.min.time())
+            midnight_ts = midnight.timestamp()
+            
+            dur_prev = int(midnight_ts - start_ts)
+            if dur_prev > 0:
+                # 保存第一段
+                self._do_save(status, dur_prev, summary, raw_data, 0, 
+                              record_date=start_dt.date(), 
+                              session_end_ts=midnight_ts)
+                
+            # 2. 强制切断会话上下文，确保下一段创建新会话
+            self._last_window_session = {
+                'id': None,
+                'title': None,
+                'process': None
+            }
+            
+            # 3. 计算第二段（今天）的时长
+            dur_curr = duration - dur_prev
+            if dur_curr > 0:
+                # 保存第二段，并将意志力胜利归属到这一段（结束时刻）
+                self._do_save(status, dur_curr, summary, raw_data, willpower_wins_increment, 
+                              record_date=end_dt.date(), 
+                              session_end_ts=current_ts)
+        else:
+            # 未跨日：直接保存
+            self._do_save(status, duration, summary, raw_data, willpower_wins_increment,
+                          record_date=end_dt.date(),
+                          session_end_ts=current_ts)
+
+    def _do_save(self, status: str, duration: int, summary: str = None, raw_data: str = None, 
+                 willpower_wins_increment: int = 0, record_date=None, session_end_ts=None):
+        """实际执行 DAO 保存逻辑"""
         try:
+            if record_date is None:
+                record_date = date.today()
+            if session_end_ts is None:
+                session_end_ts = time.time()
+
             # 1. 写入流水日志
-            # 使用本地时间作为时间戳，解决时区问题
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ActivityDAO.insert_log(status, duration, timestamp=timestamp, summary=summary, raw_data=raw_data)
+            # 使用 session_end_ts 作为记录时间点
+            timestamp_str = datetime.fromtimestamp(session_end_ts).strftime("%Y-%m-%d %H:%M:%S")
+            ActivityDAO.insert_log(status, duration, timestamp=timestamp_str, summary=summary, raw_data=raw_data)
             
             # 2. 计算连续专注时长
             if status in ['focus', 'work']:
                 self._current_focus_streak_seconds += duration
             else:
-                # 状态中断，重置 (可以加一个宽容度逻辑，比如 <2分钟的娱乐不打断，但这里先严格处理)
                 self._current_focus_streak_seconds = 0
             
             # 3. 更新每日统计 (传入当前连续时长)
-            today = date.today()
-            # 修改：如果是充电模式，所有活动都计入充能时间
+            # 使用传入的 record_date 确保统计到正确的日期
             stats_status = status
             if self.get_current_mode() == "recharge":
-                # 充电模式下，不管实际状态是什么，都统计为娱乐时间（充能）
                 stats_status = "entertainment"
 
-            # 4. 更新每日统计 (传入当前连续时长)
-            StatsDAO.update_daily_stats(today, stats_status, duration, self._current_focus_streak_seconds, willpower_wins_increment)
+            StatsDAO.update_daily_stats(record_date, stats_status, duration, self._current_focus_streak_seconds, willpower_wins_increment)
             
             # 4. 更新或创建窗口会话聚合记录 (Window Sessions)
             if raw_data:
@@ -158,12 +204,6 @@ class ActivityHistoryManager:
                     window_title = rd.get('window', '')
                     process_name = rd.get('process', '')
                     
-                    # 检查是否是同一个窗口会话的延续
-                    # 注意：这里我们简单比对窗口标题。如果需要更严谨，可以比对进程名。
-                    # 还需要考虑 Session 的时间间隔，但这里 duration 已经是连续的片段。
-                    
-                    # 获取数据库中最后一条记录（用于恢复上下文，比如程序重启后）
-                    # 优化：优先使用内存缓存，如果没有（首次运行），再查库
                     if self._last_window_session['id'] is None:
                         last_sess = WindowSessionDAO.get_last_session()
                         if last_sess:
@@ -176,36 +216,28 @@ class ActivityHistoryManager:
                     is_same_session = (
                         self._last_window_session['id'] is not None and
                         window_title == self._last_window_session['title']
-                        # process_name == self._last_window_session['process'] # 可选：严格匹配进程
                     )
                     
-                    # 修改：如果是充电模式，所有活动都标记为entertainment
                     session_status = status
                     if self.get_current_mode() == "recharge":
                         session_status = "entertainment"
                     
                     if is_same_session:
                         # 是同一个会话，更新时长
-                        WindowSessionDAO.update_session_duration(self._last_window_session['id'], duration)
+                        # 传入 explicit end_timestamp
+                        WindowSessionDAO.update_session_duration(self._last_window_session['id'], duration, end_timestamp=session_end_ts)
                         
-                        # 关键新增：如果新的 summary 是有效的（不是窗口标题），且与旧的不同，则更新
-                        # 判断是否为有效 AI 摘要：通常 summary 会包含"活动摘要"等字样，或者长度不同，
-                        # 简单逻辑：只要 summary 不为空且不等于窗口标题，就认为是更有价值的信息
                         if summary and summary != window_title:
-                            # 也可以加一个判断，避免被旧的覆盖？通常最新的总是更准
                             WindowSessionDAO.update_session_summary(self._last_window_session['id'], summary)
                     else:
                         # 是新会话，创建新记录
-                        # start_time 应该是当前时间减去 duration (因为 duration 是刚刚过去的时间)
-                        start_ts = time.time() - duration
+                        # start_time = end_ts - duration
+                        start_ts = session_end_ts - duration
                         
                         WindowSessionDAO.create_session(
                             window_title, process_name, start_ts, duration, session_status, summary
                         )
                         
-                        # 更新缓存，指向新创建的 Session
-                        # 注意：create_session 没有返回 ID，我们需要再次查询或者修改 DAO 返回 ID
-                        # 这里简单处理：再查一次 ID (并发低时问题不大)
                         new_sess = WindowSessionDAO.get_last_session()
                         if new_sess:
                             self._last_window_session = {

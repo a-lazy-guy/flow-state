@@ -116,18 +116,31 @@ class WindowSessionDAO:
             conn.commit()
 
     @staticmethod
-    def update_session_duration(session_id, additional_duration):
+    def update_session_duration(session_id, additional_duration, end_timestamp=None):
         """更新会话时长和结束时间"""
         with get_db_connection() as conn:
             # 更新 duration 和 end_time
-            # SQLite 的 datetime('now') 可以获取当前时间作为 end_time
-            conn.execute(
-                '''UPDATE window_sessions 
-                   SET duration = duration + ?, 
-                       end_time = datetime('now', 'localtime')
-                   WHERE id = ?''',
-                (additional_duration, session_id)
-            )
+            if end_timestamp:
+                if isinstance(end_timestamp, (float, int)):
+                    end_ts_str = datetime.fromtimestamp(end_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    end_ts_str = end_timestamp
+                
+                conn.execute(
+                    '''UPDATE window_sessions 
+                       SET duration = duration + ?, 
+                           end_time = ?
+                       WHERE id = ?''',
+                    (additional_duration, end_ts_str, session_id)
+                )
+            else:
+                conn.execute(
+                    '''UPDATE window_sessions 
+                       SET duration = duration + ?, 
+                           end_time = datetime('now', 'localtime')
+                       WHERE id = ?''',
+                    (additional_duration, session_id)
+                )
             conn.commit()
 
     @staticmethod

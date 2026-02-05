@@ -23,7 +23,7 @@ def ai_monitor_worker(msg_queue, running_event, ai_busy_flag=None):
         from app.data import ActivityHistoryManager
         
         # 初始化组件
-        focus_detector = FocusDetector(check_interval=1.0)
+        focus_detector = FocusDetector(check_interval=50.0)
         focus_detector.start()
         
         history_manager = ActivityHistoryManager()
@@ -31,7 +31,7 @@ def ai_monitor_worker(msg_queue, running_event, ai_busy_flag=None):
         # 状态追踪
         last_analysis_time = 0
         last_analyzed_window = None # 记录上次分析过的窗口
-        ANALYSIS_INTERVAL = 3  # 加快分析频率 (原为10秒)
+        ANALYSIS_INTERVAL = 60  # 加快分析频率 (原为10秒)
         
         current_focus_start = time.time()
         last_window_title = ""
@@ -108,8 +108,8 @@ def ai_monitor_worker(msg_queue, running_event, ai_busy_flag=None):
                         
                     if window_title != last_analyzed_window:
                          should_analyze = True
-                    # 场景2: 同一窗口停留很久了，定期重新分析一下 (比如每30秒)，以免漏掉状态变化
-                    elif (time.time() - last_analysis_time > 30): 
+                    # 场景2: 同一窗口停留很久了，定期重新分析一下 (比如每60秒)，以免漏掉状态变化
+                    elif (time.time() - last_analysis_time > ANALYSIS_INTERVAL): 
                          should_analyze = True
                          
                 if should_analyze:
@@ -134,6 +134,8 @@ def ai_monitor_worker(msg_queue, running_event, ai_busy_flag=None):
                         # 简单的状态映射
                         if "娱乐" in status_raw or "休息" in status_raw:
                             status = "entertainment"
+                        elif "Lock Screen" in window_title: # 特殊处理锁屏
+                            status = "idle"
                         elif "工作" in status_raw or "学习" in status_raw:
                             status = "work"
                         else:

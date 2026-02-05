@@ -41,7 +41,7 @@ class SimpleDailyReport(QtWidgets.QWidget):
         
         # Auto Refresh Timer
         self.refresh_timer = QtCore.QTimer(self)
-        self.refresh_timer.setInterval(30000) # 30 seconds
+        self.refresh_timer.setInterval(50000) # 50 seconds
         self.refresh_timer.timeout.connect(self._refresh_data)
         self.refresh_timer.start()
 
@@ -142,9 +142,63 @@ class SimpleDailyReport(QtWidgets.QWidget):
                     s_type = "C"
                     s_title = "\u788e\u7247"
 
+                # Check if we should merge with current block
+                should_merge = False
                 if current_block and current_block["type"] == s_type:
-                    current_block["duration_sec"] += int(s.get("duration") or 0)
-                    current_block["end_time_raw"] = s.get("end_time") or current_block.get("end_time_raw")
+                    # Check time gap
+                    try:
+                        last_end_str = current_block.get("end_time_raw")
+                        curr_start_str = s.get("start_time")
+                        if last_end_str and curr_start_str:
+                            fmt = "%Y-%m-%d %H:%M:%S"
+                            t1 = datetime.strptime(last_end_str, fmt)
+                            t2 = datetime.strptime(curr_start_str, fmt)
+                            # If gap is less than 15 minutes, merge
+                            if (t2 - t1).total_seconds() < 900: 
+                                should_merge = True
+                            else:
+                                should_merge = False # Explicitly false if gap is large
+                    except Exception:
+                        # If date parsing fails, fallback to simple type merge
+                        should_merge = True
+
+                if should_merge:
+                    # Logic: Prevent double counting overlapping duration
+                    try:
+                        fmt = "%Y-%m-%d %H:%M:%S"
+                        last_end_str = current_block.get("end_time_raw")
+                        curr_start_str = s.get("start_time")
+                        curr_end_str = s.get("end_time")
+                        
+                        if last_end_str and curr_start_str and curr_end_str:
+                            t_last_end = datetime.strptime(last_end_str, fmt)
+                            t_curr_start = datetime.strptime(curr_start_str, fmt)
+                            t_curr_end = datetime.strptime(curr_end_str, fmt)
+                            
+                            raw_dur = int(s.get("duration") or 0)
+                            
+                            # Check overlap
+                            if t_curr_start < t_last_end:
+                                overlap = (t_last_end - t_curr_start).total_seconds()
+                                # Subtract overlap from the new duration to be added
+                                # But ensure we don't subtract more than the duration itself (if fully contained)
+                                effective_dur = max(0, raw_dur - overlap)
+                                current_block["duration_sec"] += effective_dur
+                            else:
+                                current_block["duration_sec"] += raw_dur
+                                
+                            # Update end time only if new end is later
+                            if t_curr_end > t_last_end:
+                                current_block["end_time_raw"] = curr_end_str
+                        else:
+                             current_block["duration_sec"] += int(s.get("duration") or 0)
+                             current_block["end_time_raw"] = s.get("end_time") or current_block.get("end_time_raw")
+
+                    except Exception as e:
+                        print(f"Merge error: {e}")
+                        current_block["duration_sec"] += int(s.get("duration") or 0)
+                        current_block["end_time_raw"] = s.get("end_time") or current_block.get("end_time_raw")
+
                     current_block["sub_items"].append(s)
                 else:
                     if current_block:
@@ -804,6 +858,18 @@ class DailyTimeline(QtWidgets.QWidget):
         
         layout.addWidget(self._scroll)
 
+    def wheelEvent(self, event):
+        """Handle mouse wheel to scroll horizontally"""
+        if event.angleDelta().y() != 0:
+            # Convert vertical scroll (wheel) to horizontal scroll
+            h_bar = self._scroll.horizontalScrollBar()
+            # Scroll speed factor
+            step = event.angleDelta().y()
+            h_bar.setValue(h_bar.value() - step)
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
     def update_data(self):
         try:
             self.timeline_container.deleteLater()
@@ -1358,12 +1424,12 @@ class TimelineDetailPopup(QtWidgets.QDialog):
         v.setContentsMargins(0, 0, 10, 0) # Add right margin to separate content from scrollbar
         v.setSpacing(8)
 
-        for d in details[:12]:
+        for d in details:
             v.addWidget(TimelineDetailRow(d, accent, self._fmt_hm, self._guess_url))
         v.addStretch()
 
         scroll.setWidget(body)
-        scroll.setFixedHeight(min(260, max(120, 28 + len(details[:12]) * 54)))
+        scroll.setFixedHeight(min(260, max(120, 28 + len(details) * 54)))
         layout.addWidget(scroll)
 
 

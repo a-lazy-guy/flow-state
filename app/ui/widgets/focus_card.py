@@ -40,6 +40,8 @@ class FocusStatusCard(QtWidgets.QWidget):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         self.setMouseTracking(True)
+        # 允许卡片本身接收焦点，以便在 lineEdit 清除焦点后接收焦点
+        self.setFocusPolicy(QtCore.Qt.ClickFocus) 
 
         self.hovering = False
         
@@ -167,8 +169,9 @@ class FocusStatusCard(QtWidgets.QWidget):
         self.threshold_combo = QtWidgets.QComboBox()
         self.threshold_combo.addItems(["无", "15分钟", "30分钟", "45分钟 (默认)", "自定义..."])
         self.threshold_combo.setCurrentIndex(3) # 默认 45分钟
-        self.threshold_combo.setEditable(True) # 允许编辑
+        self.threshold_combo.setEditable(False) # 默认不可编辑
         self.threshold_combo.setInsertPolicy(QtWidgets.QComboBox.NoInsert) # 不自动插入新项
+        self.threshold_combo.setMaxVisibleItems(4) # 增加下拉列表可见数量
         
         # 内部变量，用于存储自定义的值，以便在下拉列表中正确显示 "自定义..."
         self._custom_minutes = 45 
@@ -176,10 +179,14 @@ class FocusStatusCard(QtWidgets.QWidget):
         # 连接 activated 信号以处理回车或选中
         # currentIndexChanged 在编辑文本时可能不会按预期触发，或者触发多次
         # 使用 lineEdit().editingFinished 处理自定义输入
-        self.threshold_combo.lineEdit().editingFinished.connect(self._on_custom_input_finished)
+        if self.threshold_combo.lineEdit():
+             self.threshold_combo.lineEdit().editingFinished.connect(self._on_custom_input_finished)
+        
         # 新增：实时监听文本变化，确保用户输入数字后立即生效，无需回车
         self.threshold_combo.editTextChanged.connect(self._on_custom_text_changed)
         self.threshold_combo.currentIndexChanged.connect(self._on_threshold_changed)
+        # 添加 activated 信号，以便用户再次点击已选中的“自定义”项时也能触发编辑模式
+        self.threshold_combo.activated.connect(self._on_threshold_changed)
 
         # 仿图2风格：米黄色背景，圆角，文字颜色深棕色
         self.threshold_combo.setStyleSheet("""
@@ -209,6 +216,32 @@ class FocusStatusCard(QtWidgets.QWidget):
                 color: #5D4037;
                 selection-background-color: #f0ebd0;
                 border: none;
+                outline: none;
+            }
+            /* 美化滚动条 */
+            QComboBox QAbstractItemView QScrollBar:vertical {
+                border: none;
+                background: #fff5cf; /* 背景与列表一致 */
+                width: 6px; /* 窄一点 */
+                border-radius: 3px;
+            }
+            QComboBox QAbstractItemView QScrollBar::handle:vertical {
+                background: #789035; /* 橄榄绿滑块 */
+                border-radius: 3px;
+                min-height: 20px;
+            }
+            QComboBox QAbstractItemView QScrollBar::handle:vertical:hover {
+                background: #6a8030;
+            }
+            QComboBox QAbstractItemView QScrollBar::add-line:vertical,
+            QComboBox QAbstractItemView QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
+                height: 0px; /* 隐藏上下箭头 */
+            }
+            QComboBox QAbstractItemView QScrollBar::add-page:vertical, 
+            QComboBox QAbstractItemView QScrollBar::sub-page:vertical {
+                background: none;
             }
         """)
         # self.threshold_combo.currentIndexChanged.connect(self._on_threshold_changed) # 移动到上面连接了
@@ -429,27 +462,40 @@ class FocusStatusCard(QtWidgets.QWidget):
         
         # 检查是否选择了 "自定义..." (最后一个选项)
         if index == 4:
-            # 选中 "自定义..." 时，清空文本框并聚焦，让用户输入
-            # 获取当前自定义的分钟数，如果没有则默认为 45
-            current_mins = getattr(self, '_custom_minutes', 45)
+            # 选中 "自定义..." 时，启用编辑模式
+            self.threshold_combo.setEditable(True)
             
-            # 使用 setInputMask 限制输入格式
-            # "999 分钟; " : 9表示可选数字，分号后的空格表示占位符用空格代替下划线
-            self.threshold_combo.lineEdit().setInputMask("999 分钟; ")
-            
-            # 设置显示文本 (注意要匹配 mask 格式，数字靠右或靠左取决于实现，通常简单设置即可)
-            # 为了美观，我们可能希望数字靠左，但 mask 通常是固定宽度的
-            # 尝试直接设置文本，Qt 会自动适配 mask
-            self.threshold_combo.lineEdit().setText(f"{current_mins}")
-            
-            # 选中数字部分
-            self.threshold_combo.lineEdit().setSelection(0, len(str(current_mins)))
-            
-            self.threshold_combo.lineEdit().setFocus()
+            line_edit = self.threshold_combo.lineEdit()
+            if line_edit:
+                # 绑定回车事件
+                try:
+                    line_edit.returnPressed.disconnect()
+                except:
+                    pass
+                line_edit.returnPressed.connect(self._on_custom_input_return_pressed)
+                
+                # 绑定失焦事件 (确保点击别处也能保存并退出编辑模式)
+                try:
+                    line_edit.editingFinished.disconnect()
+                except:
+                    pass
+                line_edit.editingFinished.connect(self._on_custom_input_finished)
+                
+                # 获取当前自定义的分钟数，如果没有则默认为 45
+                current_mins = getattr(self, '_custom_minutes', 45)
+                
+                # 使用 setInputMask 限制输入格式
+                line_edit.setInputMask("999 分钟; ")
+                
+                line_edit.setText(f"{current_mins}")
+                line_edit.setSelection(0, len(str(current_mins)))
+                line_edit.setFocus()
             return
 
-        # 非自定义模式，清除掩码
-        self.threshold_combo.lineEdit().setInputMask("")
+        # 非自定义模式，禁用编辑，清除掩码
+        self.threshold_combo.setEditable(False)
+        if self.threshold_combo.lineEdit():
+            self.threshold_combo.lineEdit().setInputMask("")
         
         threshold_map = {
             0: 0,    # 无 (关闭)
@@ -463,6 +509,16 @@ class FocusStatusCard(QtWidgets.QWidget):
         # 如果切换回其他选项，需要把最后一项的文本重置为 "自定义..."
         if self.threshold_combo.itemText(4) != "自定义...":
             self.threshold_combo.setItemText(4, "自定义...")
+
+    def _on_custom_input_return_pressed(self):
+        """处理自定义输入的回车事件"""
+        # 触发 input_finished 逻辑
+        self._on_custom_input_finished()
+        # 强制清除焦点
+        if self.threshold_combo.lineEdit():
+            self.threshold_combo.lineEdit().clearFocus()
+        # 将焦点转移到其他控件，彻底消除光标
+        self.setFocus()
 
     def _on_custom_text_changed(self, text):
         """实时处理自定义输入文本变化"""
@@ -496,8 +552,13 @@ class FocusStatusCard(QtWidgets.QWidget):
 
         text = self.threshold_combo.currentText().strip()
         
-        # 如果文本为空，不做处理
-        if not text:
+        # 如果文本为空，回退到默认 45 分钟
+        if not text or (not any(c.isdigit() for c in text)):
+            self.threshold_combo.setCurrentIndex(3) # 45分钟
+            self.threshold_combo.setEditable(False)
+            if self.threshold_combo.lineEdit():
+                self.threshold_combo.lineEdit().clearFocus()
+            self.setFocus()
             return
 
         # 尝试提取数字
@@ -517,32 +578,22 @@ class FocusStatusCard(QtWidgets.QWidget):
             # 格式化显示: "X 分钟" (注意中间有空格)
             display_text = f"{minutes} 分钟"
             
-            # 下拉列表里始终显示 "自定义..."
+            # 更新下拉列表选项文本，并退出编辑模式
             self.threshold_combo.blockSignals(True)
-            self.threshold_combo.setItemText(4, "自定义...")
+            self.threshold_combo.setItemText(4, display_text)
             self.threshold_combo.setCurrentIndex(4)
+            self.threshold_combo.setEditable(False)
             self.threshold_combo.blockSignals(False)
             
-            # 关键：强制设置 lineEdit 文本为 "X 分钟"
-            if self.threshold_combo.lineEdit():
-                # 保持掩码，确保格式一致 ("999 分钟; ")
-                # 注意：setText 时只需设置数字部分，掩码会自动补充 " 分钟"
-                self.threshold_combo.lineEdit().setInputMask("999 分钟; ")
-                self.threshold_combo.lineEdit().setText(str(minutes))
-                self.threshold_combo.lineEdit().clearFocus()
+            # 移除焦点，确保光标消失
+            self.setFocus()
         else:
-            # 输入无效的处理...
-            # 如果是 "自定义..." 或者包含 "分钟" 但没数字 (可能是刚切换过来的状态)，保持原状
-            # 注意：有了掩码后，text 可能会包含空格和掩码字符
-            # 比如 "   分钟"
-            if "分钟" in text and not any(c.isdigit() for c in text):
-                 return
-            
-            # 其他情况恢复默认
-            # 清除掩码以便显示普通文本
-            if self.threshold_combo.lineEdit():
-                self.threshold_combo.lineEdit().setInputMask("")
+            # 输入无效的处理，回退默认
             self.threshold_combo.setCurrentIndex(3)
+            self.threshold_combo.setEditable(False)
+            if self.threshold_combo.lineEdit():
+                 self.threshold_combo.lineEdit().clearFocus()
+            self.setFocus()
             
     def _handle_custom_threshold(self):
         """已废弃，改用直接输入"""
