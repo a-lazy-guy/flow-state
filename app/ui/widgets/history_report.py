@@ -166,7 +166,7 @@ class TimeAxisCard(QtWidgets.QWidget):
 
 class TimeRetroBar(QtWidgets.QWidget):
     """
-    时光回溯长条按钮
+    今日回溯长条按钮
     样式：蓝色透明玻璃 (仿造 Scheme A 风格)
     """
     clicked = Signal()
@@ -175,7 +175,7 @@ class TimeRetroBar(QtWidgets.QWidget):
         super().__init__(parent)
         self.setCursor(QtCore.Qt.PointingHandCursor)
         self.setMouseTracking(True)
-        self.text = "是否时光回溯？"
+        self.text = "是否今日回溯？"
         
         # 动画状态
         self._hover = False
@@ -266,7 +266,7 @@ class TimeRetroBar(QtWidgets.QWidget):
 class HistoryEntryWidget(QtWidgets.QWidget):
     """
     历史记录入口组件
-    状态1: 显示 '是否时光回溯？' 长条 (TimeRetroBar)
+    状态1: 显示 '是否今日回溯？' 长条 (TimeRetroBar)
     状态2: 点击后直接展示日报信息窗口
     """
     daily_clicked = Signal() # 保留信号，虽然现在直接打开窗口，但保留接口一致性

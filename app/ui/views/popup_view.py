@@ -93,7 +93,7 @@ class CardPopup(QtWidgets.QWidget):
         self.card = FocusStatusCard(self)
         self.orig_pix_size = self.card.sizeHint()
         
-        # 历史记录入口组件 (时光回溯)
+        # 历史记录入口组件 (今日回溯)
         self.history_entry = HistoryEntryWidget(self)
         self.history_entry.daily_clicked.connect(self.show_daily_report)
         
