@@ -4,6 +4,8 @@ import os
 import signal
 import multiprocessing
 import time
+import socket
+import subprocess
 
 def force_exit(signum, frame):
     # 只让主进程打印消息
@@ -21,12 +23,57 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from app.ui.main import main
 from app.service.API.web_API import run_server
 from app.service.monitor_service import ai_monitor_worker
-import multiprocessing
+
+def ensure_ollama_running():
+    """检查并启动 Ollama 服务"""
+    host = 'localhost'
+    port = 11434
+    
+    # 检查端口是否被占用
+    def is_port_open():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex((host, port)) == 0
+
+    if is_port_open():
+        print("Ollama 服务检测：已在运行。")
+        return None
+
+    print("Ollama 服务检测：未运行，正在尝试启动...")
+    try:
+        # 启动 ollama serve
+        # 使用 CREATE_NO_WINDOW 隐藏控制台窗口 (仅限 Windows)
+        creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+        process = subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags
+        )
+        
+        # 等待服务就绪
+        print("等待 Ollama 服务启动...")
+        for _ in range(10):  # 最多等待 10 秒
+            if is_port_open():
+                print("Ollama 服务启动成功！")
+                return process
+            time.sleep(1)
+        
+        print("警告：Ollama 服务启动超时，可能需要手动启动。")
+        return process
+    except FileNotFoundError:
+        print("错误：未找到 'ollama' 命令。请确保已安装 Ollama 并添加到系统 PATH 中。")
+    except Exception as e:
+        print(f"启动 Ollama 服务失败: {e}")
+    
+    return None
 
 if __name__ == "__main__":
     # Windows 下多进程必须在 __main__ 保护下
     # 使用 freeze_support() 来支持 PyInstaller 打包
     multiprocessing.freeze_support()
+    
+    # 0. 自动启动 Ollama 服务
+    ollama_process = ensure_ollama_running()
     
     # 1. 创建进程间通信队列 (用于 AI 进程向 UI 进程发送状态)
     msg_queue = multiprocessing.Queue()
@@ -68,6 +115,6 @@ if __name__ == "__main__":
         running_event.clear()  # 通知 AI 进程退出
         
         # 给子进程一点时间优雅退出
-        time.sleep(0.5)  # ← 直接用 time，不用再导入
+        time.sleep(0.5)
         
         print("主进程：退出完成")
