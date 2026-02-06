@@ -1,47 +1,94 @@
 import os
-import uuid
 import requests
+import json
 
 class LangflowClient:
     def __init__(self, timeout: int = 180):
-        self.summary_url = os.getenv('LANGFLOW_SUMMARY_URL', 'http://localhost:7860/api/v1/run/1255147a-9699-4558-b764-93a9ac1a2297')
-        self.summary_key = os.getenv('LANGFLOW_SUMMARY_KEY', 'sk-rs-VPWI5_1wTZ0YEbJ9JLotWv4h8bf4mK9ZhOR-ZEts')
-        self.enc_url = os.getenv('LANGFLOW_ENC_URL', 'http://localhost:7860/api/v1/run/1255147a-9699-4558-b764-93a9ac1a2297')
-        self.enc_key = os.getenv('LANGFLOW_ENC_KEY', 'sk-rs-VPWI5_1wTZ0YEbJ9JLotWv4h8bf4mK9ZhOR-ZEts')
-        self.detect_url = os.getenv('LANGFLOW_DETECT_URL', 'http://localhost:7860/api/v1/run/1255147a-9699-4558-b764-93a9ac1a2297')
-        self.detect_key = os.getenv('LANGFLOW_DETECT_KEY', 'sk-rs-VPWI5_1wTZ0YEbJ9JLotWv4h8bf4mK9ZhOR-ZEts')
+        # 按照用户要求，改为直接调用 Ollama 端口
+        # 默认 Ollama 地址: http://localhost:11434
+        self.ollama_base_url = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+        # 用户指定的模型: gpt-oss:20b-cloud (修正了拼写错误)
+        self.model = os.getenv('OLLAMA_MODEL', 'gpt-oss:20b-cloud')
         self.timeout = timeout
 
     def call_flow(self, flow: str, text: str):
-        if flow == 'summary':
-            url, key = self.summary_url, self.summary_key
-        elif flow == 'enc':
-            url, key = self.enc_url, self.enc_key
-        else:
-            url, key = self.detect_url, self.detect_key
+        """
+        替代原本的 Langflow 调用，直接调用 Ollama。
+        参数 flow 在此处仅作记录，不再影响路由，统一使用指定模型处理。
+        """
+        # 优先尝试 /api/chat 接口
+        url = f"{self.ollama_base_url}/api/chat"
+        
+        # 构造 Ollama 请求
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "user", "content": text}
+            ],
+            "stream": False
+        }
+
         try:
             resp = requests.post(
                 url,
-                json={"input_value": text, "input_type": "chat", "output_type": "chat", "session_id": str(uuid.uuid4())},
-                headers={"x-api-key": key} if key else {},
+                json=payload,
                 timeout=self.timeout
             )
+            
+            # 特殊处理 404 错误，尝试回退或提供更明确的报错
+            if resp.status_code == 404:
+                error_text = resp.text.lower()
+                # 如果是模型未找到，通常包含 "model" 和 "not found"
+                if "model" in error_text and "not found" in error_text:
+                    print(f"[OllamaClient] Model '{self.model}' not found. Please check 'ollama list'.")
+                    return None
+                
+                # 如果不是模型错误，可能是端点不支持，尝试 /api/generate
+                print(f"[OllamaClient] /api/chat not found (404), falling back to /api/generate...")
+                return self._call_generate_fallback(text)
+
             resp.raise_for_status()
             data = resp.json()
             return self._extract_text(data)
-        except Exception:
+        except Exception as e:
+            # 打印错误日志以便调试
+            print(f"[OllamaClient] Error calling Ollama ({url}): {e}")
+            return None
+
+    def _call_generate_fallback(self, text: str):
+        """
+        回退方法：使用 /api/generate 接口
+        """
+        url = f"{self.ollama_base_url}/api/generate"
+        payload = {
+            "model": self.model,
+            "prompt": text,
+            "stream": False
+        }
+        try:
+            resp = requests.post(url, json=payload, timeout=self.timeout)
+            resp.raise_for_status()
+            data = resp.json()
+            return self._extract_text(data)
+        except Exception as e:
+            print(f"[OllamaClient] Fallback to /api/generate failed: {e}")
             return None
 
     def _extract_text(self, data):
+        # 适配 Ollama 的响应格式
         try:
-            return data["outputs"][0]["outputs"][0]["results"]["message"]["text"]
+            # /api/chat 的响应格式: data["message"]["content"]
+            if "message" in data and "content" in data["message"]:
+                return data["message"]["content"]
         except Exception:
             pass
+        
         try:
-            return data.get("text") or data.get("message", {}).get("text")
+            # /api/generate 的响应格式 (作为备用兼容): data["response"]
+            if "response" in data:
+                return data["response"]
         except Exception:
             pass
-        try:
-            return str(data)
-        except Exception:
-            return None
+            
+        # 如果格式都不匹配，尝试返回整个数据字符串（用于调试）或 None
+        return None
