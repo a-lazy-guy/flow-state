@@ -457,14 +457,14 @@ class FatigueReminderDialog(QDialog):
         content_layout.setContentsMargins(40, 60, 40, 60)
         content_layout.setSpacing(30)
 
-        # 添加最小化按钮
+        # 添加最小化按钮（仅在倒计时进行时显示）
         top_toolbar = QHBoxLayout()
         top_toolbar.addStretch()
-        minimize_btn = QPushButton("最小化")
+        self.minimize_btn = QPushButton("最小化")
         # 保留高度，宽度根据文本自适应
-        minimize_btn.setMinimumHeight(40)
-        minimize_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
-        minimize_btn.setStyleSheet("""
+        self.minimize_btn.setMinimumHeight(40)
+        self.minimize_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        self.minimize_btn.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
                 border: none;
@@ -478,10 +478,15 @@ class FatigueReminderDialog(QDialog):
                 border-radius: 20px;
             }
         """)
-        minimize_btn.clicked.connect(self._on_minimize_clicked)
-        minimize_btn.setContentsMargins(8, 0, 8, 0)
-        minimize_btn.adjustSize()
-        top_toolbar.addWidget(minimize_btn)
+        self.minimize_btn.clicked.connect(self._on_minimize_clicked)
+        self.minimize_btn.setContentsMargins(8, 0, 8, 0)
+        self.minimize_btn.adjustSize()
+        # 初始隐藏，只有在计时开始时显示
+        try:
+            self.minimize_btn.hide()
+        except Exception:
+            pass
+        top_toolbar.addWidget(self.minimize_btn)
         content_layout.addLayout(top_toolbar)
         
         # 活动标题
@@ -527,6 +532,25 @@ class FatigueReminderDialog(QDialog):
         self.timer_skip_btn.clicked.connect(self._on_rest_finished)
         
         btn_layout.addWidget(self.timer_skip_btn)
+        # 完成后用户确认按钮（初始隐藏）
+        self.timer_ack_btn = QPushButton("我知道了")
+        self.timer_ack_btn.setFixedSize(140, 45)
+        self.timer_ack_btn.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        self.timer_ack_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 22px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+        """)
+        self.timer_ack_btn.clicked.connect(self.accept)
+        self.timer_ack_btn.hide()
+        btn_layout.addWidget(self.timer_ack_btn)
         btn_layout.addStretch()
         
         content_layout.addStretch()
@@ -559,6 +583,11 @@ class FatigueReminderDialog(QDialog):
         self.stacked_layout.setCurrentIndex(2)
         
         # 启动计时器
+        # 显示最小化按钮（倒计时进行时）
+        try:
+            self.minimize_btn.show()
+        except Exception:
+            pass
         self.rest_timer.start(1000)
 
     def _on_timer_tick(self):
@@ -620,10 +649,22 @@ class FatigueReminderDialog(QDialog):
         self.timer_display_label.hide()
         self.timer_message_label.show()
         self.timer_activity_label.setText("休息完成")
-        self.timer_skip_btn.hide() # 隐藏按钮，让用户专注看特效
-
-        # 3秒后自动关闭
-        QTimer.singleShot(3000, self.accept)
+        # 隐藏结束按钮，显示确认按钮，由用户点击关闭
+        try:
+            self.timer_skip_btn.hide()
+        except Exception:
+            pass
+        # 隐藏最小化按钮（计时已结束）
+        try:
+            self.minimize_btn.hide()
+        except Exception:
+            pass
+        try:
+            self.timer_ack_btn.show()
+            self.timer_ack_btn.setFocus()
+        except Exception:
+            # 如果确认按钮不存在，则回退为不自动关闭（保持在完成页）
+            pass
 
     def _on_minimize_clicked(self):
         """最小化窗口（保持计时器运行）。"""
