@@ -42,6 +42,10 @@ class FatigueReminderDialog(QDialog):
         self.rest_timer.timeout.connect(self._on_timer_tick)
         self.remaining_time = 0
         
+        # 拖拽支持：全窗口任意位置可拖动
+        self._drag_active = False
+        self._drag_offset = None
+        
     def _center_window(self):
         """将窗口居中显示"""
         screen = QApplication.primaryScreen()
@@ -452,6 +456,33 @@ class FatigueReminderDialog(QDialog):
         content_layout = QVBoxLayout(bg_frame)
         content_layout.setContentsMargins(40, 60, 40, 60)
         content_layout.setSpacing(30)
+
+        # 添加最小化按钮
+        top_toolbar = QHBoxLayout()
+        top_toolbar.addStretch()
+        minimize_btn = QPushButton("最小化")
+        # 保留高度，宽度根据文本自适应
+        minimize_btn.setMinimumHeight(40)
+        minimize_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        minimize_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                font-size: 20px;
+                color: #7f8c8d;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                color: #2c3e50;
+                background-color: rgba(0,0,0,0.03);
+                border-radius: 20px;
+            }
+        """)
+        minimize_btn.clicked.connect(self._on_minimize_clicked)
+        minimize_btn.setContentsMargins(8, 0, 8, 0)
+        minimize_btn.adjustSize()
+        top_toolbar.addWidget(minimize_btn)
+        content_layout.addLayout(top_toolbar)
         
         # 活动标题
         self.timer_activity_label = QLabel("正在休息")
@@ -567,15 +598,59 @@ class FatigueReminderDialog(QDialog):
     def _on_rest_finished(self):
         """休息完成"""
         self.rest_timer.stop()
-        
+        # 如果窗口被最小化或隐藏，先恢复并置顶
+        try:
+            if self.isMinimized() or not self.isVisible():
+                try:
+                    self.showNormal()
+                except Exception:
+                    pass
+                try:
+                    self.show()
+                    self.raise_()
+                    self.activateWindow()
+                except Exception:
+                    pass
+
+        except Exception:
+            # 保守回退：忽略任何检查错误
+            pass
+
         # 更新 UI 显示完成状态
         self.timer_display_label.hide()
         self.timer_message_label.show()
         self.timer_activity_label.setText("休息完成")
         self.timer_skip_btn.hide() # 隐藏按钮，让用户专注看特效
-        
+
         # 3秒后自动关闭
         QTimer.singleShot(3000, self.accept)
+
+    def _on_minimize_clicked(self):
+        """最小化窗口（保持计时器运行）。"""
+        try:
+            self.showMinimized()
+        except Exception:
+            # 作为回退，隐藏窗口但保持计时器运行
+            self.hide()
+
+    def mousePressEvent(self, event):
+        """鼠标按下：持续跟踪位置用于拖拽。"""
+        if event.button() == Qt.LeftButton:
+            self._drag_active = True
+            self._drag_offset = event.globalPos() - self.frameGeometry().topLeft()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """鼠标移动：若拖拽活跃，移动窗口。"""
+        if self._drag_active and self._drag_offset is not None:
+            self.move(event.globalPos() - self._drag_offset)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """鼠标释放：结束拖拽。"""
+        if event.button() == Qt.LeftButton:
+            self._drag_active = False
+        super().mouseReleaseEvent(event)
 
     def _create_stat_widget(self, icon: str, label: str, value: str, color: str):
         """创建统计小部件"""

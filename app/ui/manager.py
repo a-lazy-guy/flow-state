@@ -110,7 +110,11 @@ class FlowStateApp(QtCore.QObject):
             if should_remind:
                 print(f"[App] Triggering Fatigue Reminder: {duration}s")
                 minutes = int(duration / 60)
-                
+                existing = getattr(self, 'fatigue_dialog', None)
+                # 如果已有对话框存在且未被隐藏（包括最小化），则跳过创建新的
+                if existing is not None and not existing.isHidden():
+                    return
+
                 self.fatigue_dialog = FatigueReminderDialog(severity='medium', duration=minutes)
                 self.fatigue_dialog.setWindowFlags(
                     self.fatigue_dialog.windowFlags() | QtCore.Qt.WindowStaysOnTopHint
@@ -118,7 +122,7 @@ class FlowStateApp(QtCore.QObject):
                 self.fatigue_dialog.show()
                 self.fatigue_dialog.raise_()
                 self.fatigue_dialog.activateWindow()
-                
+
                 self.last_fatigue_remind_time = current_time
 
     def _check_entertainment(self, status, duration, current_time):
